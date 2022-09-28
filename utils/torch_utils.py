@@ -83,6 +83,13 @@ def select_device(device='', batch_size=None):
     return torch.device('cuda:0' if cuda else 'cpu')
 
 
+def time_sync():
+    # pytorch-accurate time
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
+    return time.time()
+
+
 def is_parallel(model):
     # Returns True if model is of type DP or DDP
     return type(model) in (nn.parallel.DataParallel, nn.parallel.DistributedDataParallel)
