@@ -12,7 +12,7 @@ from multiprocessing.pool import Pool
 from tqdm import tqdm
 import logging
 from itertools import repeat
-import torch.nn.functional as F
+# import torch.nn.functional as F
 from typing import List
 import torch
 from torch.utils.data import Dataset

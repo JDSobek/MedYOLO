@@ -4,11 +4,11 @@ Validation script for 3D YOLO.  Called as part of training script but can also b
 
 # standard library imports
 import argparse
-import json
+# import json
 import os
 import sys
 from pathlib import Path
-from threading import Thread
+# from threading import Thread
 import numpy as np
 import torch
 from tqdm import tqdm

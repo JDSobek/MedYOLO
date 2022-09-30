@@ -1,12 +1,12 @@
 # standard library imports
-from configparser import Interpolation
+# from configparser import Interpolation
 import random
 import numpy as np
-import math
-import torchvision
+# import math
+# import torchvision
 
 # 2D YOLO imports
-from utils.general import colorstr, segment2box, resample_segments, check_version
+# from utils.general import colorstr, segment2box, resample_segments, check_version
 
 # 3D YOLO imports
 from utils3D.lossandmetrics import bbox_iov

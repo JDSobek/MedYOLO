@@ -3,16 +3,16 @@
 General utils
 """
 
-import contextlib
+# import contextlib
 import glob
 import logging
 import math
 import os
 import platform
-import random
+# import random
 import re
-import signal
-import time
+# import signal
+# import time
 import urllib
 from itertools import repeat
 from multiprocessing.pool import ThreadPool
@@ -25,11 +25,11 @@ import numpy as np
 import pandas as pd
 import pkg_resources as pkg
 import torch
-import torchvision
+# import torchvision
 import yaml
 
 from utils.downloads import gsutil_getsize
-from utils.metrics import box_iou, fitness
+from utils.metrics import fitness #, box_iou
 
 # Settings
 torch.set_printoptions(linewidth=320, precision=5, profile='long')
@@ -73,6 +73,34 @@ def get_latest_run(search_dir='.'):
     # Return path to most recent 'last.pt' in /runs (i.e. to --resume from)
     last_list = glob.glob(f'{search_dir}/**/last*.pt', recursive=True)
     return max(last_list, key=os.path.getctime) if last_list else ''
+
+
+def user_config_dir(dir='Ultralytics', env_var='YOLOV5_CONFIG_DIR'):
+    # Return path of user configuration directory. Prefer environment variable if exists. Make dir if required.
+    env = os.getenv(env_var)
+    if env:
+        path = Path(env)  # use environment variable
+    else:
+        cfg = {'Windows': 'AppData/Roaming', 'Linux': '.config', 'Darwin': 'Library/Application Support'}  # 3 OS dirs
+        path = Path.home() / cfg.get(platform.system(), '')  # OS-specific config dir
+        path = (path if is_writeable(path) else Path('/tmp')) / dir  # GCP and AWS lambda fix, only /tmp is writeable
+    path.mkdir(exist_ok=True)  # make if required
+    return path
+
+
+def is_writeable(dir, test=False):
+    # Return True if directory has write permissions, test opening a file with write permissions if test=True
+    if test:  # method 1
+        file = Path(dir) / 'tmp.txt'
+        try:
+            with open(file, 'w'):  # open file with write permissions
+                pass
+            file.unlink()  # remove file
+            return True
+        except OSError:
+            return False
+    else:  # method 2
+        return os.access(dir, os.R_OK)  # possible issues on Windows
 
 
 def emojis(str=''):
@@ -124,6 +152,17 @@ def check_requirements(requirements=ROOT / 'requirements.txt', exclude=(), insta
         s = f"{prefix} {n} package{'s' * (n > 1)} updated per {source}\n" \
             f"{prefix} ⚠️ {colorstr('bold', 'Restart runtime or rerun command for updates to take effect')}\n"
         print(emojis(s))
+
+
+def check_img_size(imgsz, s=32, floor=0):
+    # Verify image size is a multiple of stride s in each dimension
+    if isinstance(imgsz, int):  # integer i.e. img_size=640
+        new_size = max(make_divisible(imgsz, int(s)), floor)
+    else:  # list i.e. img_size=[640, 480]
+        new_size = [max(make_divisible(x, int(s)), floor) for x in imgsz]
+    if new_size != imgsz:
+        print(f'WARNING: --img-size {imgsz} must be multiple of max stride {s}, updating to {new_size}')
+    return new_size
 
 
 def check_python(minimum='3.6.2'):

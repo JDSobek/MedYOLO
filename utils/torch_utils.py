@@ -17,13 +17,13 @@ from pathlib import Path
 import torch
 import torch.distributed as dist
 import torch.nn as nn
-import torch.nn.functional as F
-import torchvision
+# import torch.nn.functional as F
+# import torchvision
 
-try:
-    import thop  # for FLOPs computation
-except ImportError:
-    thop = None
+# try:
+#     import thop  # for FLOPs computation
+# except ImportError:
+#     thop = None
 
 LOGGER = logging.getLogger(__name__)
 

@@ -3,8 +3,8 @@ General utility functions from YOLOv5 utils/general.py that have needed changes 
 """
 
 # standard library imports
-from platform import java_ver
-from pyparsing import javaStyleComment
+# from platform import java_ver
+# from pyparsing import javaStyleComment
 import torch
 import time
 import numpy as np

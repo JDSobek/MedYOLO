@@ -26,9 +26,8 @@
 storage.googleapis.com
 runs/*
 data/*
-!data/hyps/*
-!data/images/zidane.jpg
-!data/images/bus.jpg
+!data/hyps/
+!data/example.yaml
 !data/*.sh
 
 results*.csv

@@ -3,16 +3,16 @@
 Download utils
 """
 
-import os
-import platform
+# import os
+# import platform
 import subprocess
-import time
-import urllib
-from pathlib import Path
-from zipfile import ZipFile
+# import time
+# import urllib
+# from pathlib import Path
+# from zipfile import ZipFile
 
-import requests
-import torch
+# import requests
+# import torch
 
 
 def gsutil_getsize(url=''):
