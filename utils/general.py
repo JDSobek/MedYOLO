@@ -5,7 +5,7 @@ General utils
 
 # import contextlib
 import glob
-import logging
+# import logging
 import math
 import os
 import platform
@@ -20,7 +20,7 @@ from pathlib import Path
 from subprocess import check_output
 from zipfile import ZipFile
 
-import cv2
+# import cv2
 import numpy as np
 import pandas as pd
 import pkg_resources as pkg
@@ -35,7 +35,7 @@ from utils.metrics import fitness #, box_iou
 torch.set_printoptions(linewidth=320, precision=5, profile='long')
 np.set_printoptions(linewidth=320, formatter={'float_kind': '{:11.5g}'.format})  # format short g, %precision=5
 pd.options.display.max_columns = 10
-cv2.setNumThreads(0)  # prevent OpenCV from multithreading (incompatible with PyTorch DataLoader)
+# cv2.setNumThreads(0)  # prevent OpenCV from multithreading (incompatible with PyTorch DataLoader)
 os.environ['NUMEXPR_MAX_THREADS'] = str(min(os.cpu_count(), 8))  # NumExpr max threads
 
 FILE = Path(__file__).resolve()
@@ -58,10 +58,10 @@ def methods(instance):
     return [f for f in dir(instance) if callable(getattr(instance, f)) and not f.startswith("__")]
 
 
-def set_logging(rank=-1, verbose=True):
-    logging.basicConfig(
-        format="%(message)s",
-        level=logging.INFO if (verbose and rank in [-1, 0]) else logging.WARN)
+# def set_logging(rank=-1, verbose=True):
+#     logging.basicConfig(
+#         format="%(message)s",
+#         level=logging.INFO if (verbose and rank in [-1, 0]) else logging.WARN)
 
 
 def print_args(name, opt):

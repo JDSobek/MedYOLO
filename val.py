@@ -1,5 +1,6 @@
 """
 Validation script for 3D YOLO.  Called as part of training script but can also be used to validate a model independently.
+Example cmd line call: python val.py --data example.yaml --weights ./runs/train/exp/weights/best.pt
 """
 
 # standard library imports
@@ -13,6 +14,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
+# set path for local imports
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLO3D root directory
 if str(ROOT) not in sys.path:
@@ -20,7 +22,7 @@ if str(ROOT) not in sys.path:
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 # 2D YOLO imports
-from utils.general import check_dataset, check_requirements, check_suffix, check_yaml, set_logging, increment_path, colorstr, print_args
+from utils.general import check_dataset, check_img_size, check_requirements, check_suffix, check_yaml, increment_path, colorstr, print_args #, set_logging
 from utils.metrics import ap_per_class
 from utils.plots import plot_val_study
 from utils.torch_utils import select_device, time_sync
@@ -117,7 +119,7 @@ def run(data,
         check_suffix(weights, '.pt')
         model = attempt_load(weights, map_location=device)  # load FP32 model
         gs = max(int(model.stride.max()), 32)  # grid size (max stride)
-        # imgsz = check_img_size(imgsz, s=gs)  # check image size
+        imgsz = check_img_size(imgsz, s=gs)  # check image size
 
         # Data
         data = check_dataset(data)  # check
@@ -275,14 +277,14 @@ def parse_opt():
     parser.add_argument('--half', action='store_true', help='use FP16 half-precision inference')
     opt = parser.parse_args()
     opt.data = check_yaml(opt.data)  # check YAML
-    opt.save_json = False
+    # opt.save_json = False
     opt.save_txt = True
     print_args(FILE.stem, opt)
     return opt
     
     
 def main(opt):
-    set_logging()
+    # set_logging()
     check_requirements(exclude=('tensorboard', 'thop'))
 
     if opt.task in ('train', 'val', 'test'):  # run normally

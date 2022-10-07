@@ -349,6 +349,7 @@ class ComputeLossVF:
 
             # Append
             a = t[:, 8].long()  # anchor indices
+            gain = gain.to(torch.long)            
             indices.append((b, a, gi.clamp_(0, gain[2] - 1), gk.clamp_(0, gain[4] - 1), gj.clamp_(0, gain[3] - 1)))  # image, anchor, grid indices
             tbox.append(torch.cat((gzxy - gijk, gdwh), 1))  # box
             anch.append(anchors[a])  # anchors

@@ -9,7 +9,7 @@ import sys
 import torch
 from pathlib import Path
 import os
-import logging
+# import logging
 import warnings
 import torch.nn as nn
 import torch.nn.functional as F
@@ -31,7 +31,7 @@ from utils.general import make_divisible
 # 3D YOLO imports
 # from utils3D.anchors import check_anchor_order
 
-LOGGER = logging.getLogger(__name__)
+# LOGGER = logging.getLogger(__name__)
 default_size = 350 # edge length for testing
 
 
@@ -129,7 +129,7 @@ def model_info(model, verbose=False, img_size=default_size):
             print('%5g %40s %9s %12g %20s %10.3g %10.3g' %
                   (i, name, p.requires_grad, p.numel(), list(p.shape), p.mean(), p.std()))
 
-    LOGGER.info(f"Model Summary: {len(list(model.modules()))} layers, {n_p} parameters, {n_g} gradients")
+    # LOGGER.info(f"Model Summary: {len(list(model.modules()))} layers, {n_p} parameters, {n_g} gradients")
 
 
 # YOLO layers
@@ -346,7 +346,7 @@ def parse_model(d, ch):
         (torch.Module): Configured model.
         (List[int]): List of layers from which to save output.
     """
-    LOGGER.info(f"\n{'':>3}{'from':>18}{'n':>3}{'params':>10}  {'module':<40}{'arguments':<30}")
+    # LOGGER.info(f"\n{'':>3}{'from':>18}{'n':>3}{'params':>10}  {'module':<40}{'arguments':<30}")
     anchors, nc, gd, gw = d['anchors'], d['nc'], d['depth_multiple'], d['width_multiple']
     na = (len(anchors[0]) // 3) if isinstance(anchors, list) else anchors  # number of anchors
     no = na * (nc + 7)  # number of outputs = anchors * (classes + 7 [zxydwh + conf (I think)])
@@ -387,7 +387,7 @@ def parse_model(d, ch):
         t = str(m)[8:-2].replace('__main__.', '')  # module type
         np = sum(x.numel() for x in m_.parameters())  # number params
         m_.i, m_.f, m_.type, m_.np = i, f, t, np  # attach index, 'from' index, type, number of parameters
-        LOGGER.info(f'{i:>3}{str(f):>18}{n_:>3}{np:10.0f}  {t:<40}{str(args):<30}')  # print
+        # LOGGER.info(f'{i:>3}{str(f):>18}{n_:>3}{np:10.0f}  {t:<40}{str(args):<30}')  # print
         save.extend(x % i for x in ([f] if isinstance(f, int) else f) if x != -1)  # append to savelist
         layers.append(m_)
         if i == 0:
@@ -419,10 +419,10 @@ class Model(nn.Module):
         # Define model
         ch = self.yaml['ch'] = self.yaml.get('ch', ch)  # input channels
         if nc and nc != self.yaml['nc']:
-            LOGGER.info(f"Overriding model.yaml nc={self.yaml['nc']} with nc={nc}")
+            # LOGGER.info(f"Overriding model.yaml nc={self.yaml['nc']} with nc={nc}")
             self.yaml['nc'] = nc  # override yaml value
         if anchors:
-            LOGGER.info(f'Overriding model.yaml anchors with anchors={anchors}')
+            # LOGGER.info(f'Overriding model.yaml anchors with anchors={anchors}')
             self.yaml['anchors'] = round(anchors)  # override yaml value
         # parse_model configures the layers and passes in the anchors hyperparameter to the Detect layer
         self.model, self.save = parse_model(deepcopy(self.yaml), ch=[ch])  # model, savelist
@@ -445,7 +445,7 @@ class Model(nn.Module):
         # Initialize weights and biases
         initialize_weights(self)
         # self.info()  # prints model information
-        LOGGER.info('')
+        # LOGGER.info('')
 
     def forward(self, x, augment=False, profile=False, visualize=False):
         # augmentation functionality missing, do not use
@@ -492,7 +492,7 @@ class Model(nn.Module):
             mi.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
 
     def fuse(self):   # fuse model Conv3d() + BatchNorm3d() layers
-        LOGGER.info('Fusing layers... ')
+        # LOGGER.info('Fusing layers... ')
         for m in self.model.modules():
             if isinstance(m, (Conv)) and hasattr(m, 'bn'):
                 m.conv = fuse_conv_and_bn(m.conv, m.bn)  # update conv

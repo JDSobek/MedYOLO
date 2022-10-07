@@ -1,5 +1,6 @@
 """
 Detection script for 3D YOLO.  Used to generate bounding boxes from nifti scans.
+Example cmd line call: python detect.py --source ./data/nifti_folder/ --weights ./runs/train/exp/weights/best.pt
 """
 
 # standard library imports
@@ -11,14 +12,15 @@ from pathlib import Path
 import torch
 # import torch.backends.cudnn as cudnn
 
+# set path for local imports
 FILE = Path(__file__).resolve()
-ROOT = FILE.parents[0]  # YOLOv5 root directory
+ROOT = FILE.parents[0]  # YOLO3D root directory
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 # 2D YOLO imports
-from utils.general import check_requirements, print_args, increment_path, set_logging, check_suffix, check_img_size, colorstr
+from utils.general import check_requirements, print_args, increment_path, check_suffix, check_img_size, colorstr #, set_logging
 from utils.torch_utils import select_device
 
 # 3D YOLO imports
@@ -59,11 +61,10 @@ def run(weights, # model.pt path(s)
     
     # Directories
     save_dir = increment_path(Path(project) / name, exist_ok=exist_ok)  # increment run
-    # RIL - reenable when testing complete
     (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
     
     # Initialize
-    set_logging()
+    # set_logging()
     device = select_device(device)
     half &= device.type != 'cpu'  # half precision only supported on CUDA
     
@@ -159,8 +160,6 @@ def parse_opt():
     parser.add_argument('--augment', action='store_true', help='augmented inference')
     parser.add_argument('--visualize', action='store_true', help='visualize features')
     parser.add_argument('--project', default=ROOT / 'runs/detect', help='save results to project/name')
-    parser.add_argument('--name', default='exp', help='save results to project/name')
-    parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--name', default='exp', help='save results to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--half', action='store_true', help='use FP16 half-precision inference')

@@ -4,7 +4,7 @@ PyTorch utils
 """
 
 import datetime
-import logging
+# import logging
 import math
 import os
 import platform
@@ -25,7 +25,7 @@ import torch.nn as nn
 # except ImportError:
 #     thop = None
 
-LOGGER = logging.getLogger(__name__)
+# LOGGER = logging.getLogger(__name__)
 
 
 @contextmanager
@@ -79,7 +79,7 @@ def select_device(device='', batch_size=None):
     else:
         s += 'CPU\n'
 
-    LOGGER.info(s.encode().decode('ascii', 'ignore') if platform.system() == 'Windows' else s)  # emoji-safe
+    # LOGGER.info(s.encode().decode('ascii', 'ignore') if platform.system() == 'Windows' else s)  # emoji-safe
     return torch.device('cuda:0' if cuda else 'cpu')
 
 
@@ -125,7 +125,11 @@ class EarlyStopping:
         self.possible_stop = delta >= (self.patience - 1)  # possible stop may occur next epoch
         stop = delta >= self.patience  # stop training if patience exceeded
         if stop:
-            LOGGER.info(f'Stopping training early as no improvement observed in last {self.patience} epochs. '
+            # LOGGER.info(f'Stopping training early as no improvement observed in last {self.patience} epochs. '
+            #             f'Best results observed at epoch {self.best_epoch}, best model saved as best.pt.\n'
+            #             f'To update EarlyStopping(patience={self.patience}) pass a new patience value, '
+            #             f'i.e. `python train.py --patience 300` or use `--patience 0` to disable EarlyStopping.')
+            print(f'Stopping training early as no improvement observed in last {self.patience} epochs. '
                         f'Best results observed at epoch {self.best_epoch}, best model saved as best.pt.\n'
                         f'To update EarlyStopping(patience={self.patience}) pass a new patience value, '
                         f'i.e. `python train.py --patience 300` or use `--patience 0` to disable EarlyStopping.')

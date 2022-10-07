@@ -1,11 +1,12 @@
 """
 Training script for 3D YOLO.
+Example cmd line call: python train.py --data example.yaml
 """
 
 # standard library imports
 import argparse
 from copy import deepcopy
-import logging
+# import logging
 import os
 import random
 import sys
@@ -21,6 +22,7 @@ from torch.cuda import amp
 from torch.optim import Adam, lr_scheduler
 from tqdm import tqdm
 
+# set path for local imports
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLO3D root directory
 if str(ROOT) not in sys.path:
@@ -28,13 +30,13 @@ if str(ROOT) not in sys.path:
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 # 2D YOLO imports
-from utils.general import methods, colorstr, labels_to_class_weights, increment_path, set_logging, print_args, \
-    check_yaml, check_file, get_latest_run, one_cycle, print_mutation, strip_optimizer
+from utils.general import methods, colorstr, labels_to_class_weights, increment_path, print_args, \
+    check_yaml, check_file, get_latest_run, one_cycle, print_mutation, strip_optimizer #, set_logging
 from utils.callbacks import Callbacks
 from utils.torch_utils import select_device, de_parallel, EarlyStopping, ModelEMA, torch_distributed_zero_first
 from utils.metrics import fitness
 from utils.plots import plot_evolve
-from utils.loggers import Loggers
+# from utils.loggers import Loggers
 
 # 3D YOLO imports
 from models3D.model import Model, attempt_load
@@ -47,14 +49,14 @@ import val
 
 
 # Configuration
-LOGGER = logging.getLogger(__name__)
+# LOGGER = logging.getLogger(__name__)
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable/elastic/run.html
 RANK = int(os.getenv('RANK', -1))
 WORLD_SIZE = int(os.getenv('WORLD_SIZE', 1))
 
 # testing parameters, remove after dev
 default_size = 350 # edge length for testing, below 350 the model can't process the data
-default_epochs = 100
+default_epochs = 200
 default_batch = 8
 
 
@@ -73,7 +75,7 @@ def train(hyp, opt, device, callbacks):
     if isinstance(hyp, str):
         with open(hyp, errors='ignore') as f:
             hyp = yaml.safe_load(f)  # load model hyps dict
-    LOGGER.info(colorstr('hyperparameters: ') + ', '.join(f'{k}={v}' for k, v in hyp.items()))
+    # LOGGER.info(colorstr('hyperparameters: ') + ', '.join(f'{k}={v}' for k, v in hyp.items()))
     
     # Save run settings
     with open(save_dir / 'hyp.yaml', 'w') as f:
@@ -82,17 +84,17 @@ def train(hyp, opt, device, callbacks):
         yaml.safe_dump(vars(opt), f, sort_keys=False)
     data_dict = None
 
-    # Loggers
-    if RANK in [-1, 0]:
-        loggers = Loggers(save_dir, weights, opt, hyp, LOGGER)  # loggers instance
-        if loggers.wandb:
-            data_dict = loggers.wandb.data_dict
-            if resume:
-                weights, epochs, hyp = opt.weights, opt.epochs, opt.hyp
+    # # Loggers
+    # if RANK in [-1, 0]:
+    #     loggers = Loggers(save_dir, weights, opt, hyp, LOGGER)  # loggers instance
+    #     if loggers.wandb:
+    #         data_dict = loggers.wandb.data_dict
+    #         if resume:
+    #             weights, epochs, hyp = opt.weights, opt.epochs, opt.hyp
 
-        # Register actions
-        for k in methods(loggers):
-            callbacks.register_action(k, callback=getattr(loggers, k))
+    #     # Register actions
+    #     for k in methods(loggers):
+    #         callbacks.register_action(k, callback=getattr(loggers, k))
     
     # Config
     plots = False
@@ -197,7 +199,6 @@ def train(hyp, opt, device, callbacks):
     scheduler.last_epoch = start_epoch - 1  # do not move
     scaler = amp.GradScaler(enabled=cuda)
     stopper = EarlyStopping(patience=opt.patience)
-    # compute_loss = ComputeLoss(model)  # init loss class
     compute_loss = ComputeLossVF(model)  # init Varifocal loss class
     
     for epoch in range(epochs):  # epoch ------------------------------------------------------------------
@@ -206,7 +207,8 @@ def train(hyp, opt, device, callbacks):
         if RANK != -1:
             train_loader.sampler.set_epoch(epoch)
         pbar = enumerate(train_loader)
-        LOGGER.info(('\n' + '%10s' * 7) % ('Epoch', 'gpu_mem', 'box', 'obj', 'cls', 'labels', 'img_size'))
+        # LOGGER.info(('\n' + '%10s' * 7) % ('Epoch', 'gpu_mem', 'box', 'obj', 'cls', 'labels', 'img_size'))
+        print(('\n' + '%10s' * 7) % ('Epoch', 'gpu_mem', 'box', 'obj', 'cls', 'labels', 'img_size'))
         if RANK in [-1, 0]:
             pbar = tqdm(pbar, total=nb)  # progress bar
         optimizer.zero_grad()
@@ -231,7 +233,7 @@ def train(hyp, opt, device, callbacks):
             # Forward
             with amp.autocast(enabled=cuda):
                 pred = model(imgs)  # forward
-                loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
+                loss, loss_items = compute_loss(pred, targets.to(device).float())  # loss scaled by batch_size
 
                 if RANK != -1:
                     loss *= WORLD_SIZE  # gradient averaged between devices in DDP mode
@@ -296,7 +298,7 @@ def train(hyp, opt, device, callbacks):
                         'ema': deepcopy(ema.ema).half(),
                         'updates': ema.updates,
                         'optimizer': optimizer.state_dict(),
-                        'wandb_id': loggers.wandb.wandb_run.id if loggers.wandb else None}
+                        'wandb_id': None} # loggers.wandb.wandb_run.id if loggers.wandb else None}
                 
                 # Save last, best and delete
                 torch.save(ckpt, last)
@@ -316,17 +318,17 @@ def train(hyp, opt, device, callbacks):
     
      # a final validation loop to compare the model with the final trained weights to the model with the best score from above
     if RANK in [-1, 0]:
-        LOGGER.info(f'\n{epoch - start_epoch + 1} epochs completed in {(time.time() - t0) / 3600:.3f} hours.')
+        # LOGGER.info(f'\n{epoch - start_epoch + 1} epochs completed in {(time.time() - t0) / 3600:.3f} hours.')
         for f in last, best:
             if f.exists():
                 strip_optimizer(f)  # strip optimizers
                 if f is best:
-                    LOGGER.info(f'\nValidating {f}...')
+                    # LOGGER.info(f'\nValidating {f}...')
                     results, _, _ = val.run(data_dict,
                                             batch_size=batch_size // WORLD_SIZE * 2,
                                             imgsz=imgsz,
                                             model=attempt_load(f, device).half(),
-                                            iou_thres=0.60, # 0.65 if is_coco, but is_coco = False
+                                            iou_thres=0.60,
                                             single_cls=single_cls,
                                             dataloader=val_loader,
                                             save_dir=save_dir,
@@ -337,7 +339,7 @@ def train(hyp, opt, device, callbacks):
 
 
         callbacks.run('on_train_end', last, best, plots, epoch, results)
-        LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}")
+        # LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}")
 
     torch.cuda.empty_cache()
     return results
@@ -346,10 +348,16 @@ def train(hyp, opt, device, callbacks):
 def parse_opt(known=False):
     # parses the options in the arguments
     # many of these options aren't implemented yet, and are left for now for reference
+    
+    # save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze, = \
+    #     Path(opt.save_dir), opt.epochs, opt.batch_size, opt.weights, opt.single_cls, opt.evolve, opt.data, opt.cfg, \
+    #     opt.resume, opt.noval, opt.nosave, opt.workers, opt.freeze
+    
+    
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', type=str, default='', help='initial weights path')  # weights start randomly initialized
     parser.add_argument('--cfg', type=str, default=ROOT / 'models3D/yolo3Ds.yaml', help='model.yaml path') # Testing new architecture for YOLO3D
-    parser.add_argument('--data', type=str, default=ROOT / 'data/', help='dataset.yaml path')  # data folder included to store dataset yamls, but a default is not included to protect PHI
+    parser.add_argument('--data', type=str, default=ROOT / 'data/example.yaml', help='dataset.yaml path')  # data folder included to store dataset yamls, but a default is not included to protect PHI
     parser.add_argument('--hyp', type=str, default=ROOT / 'data/hyps/hyp.scratch.yaml', help='hyperparameters path')
     parser.add_argument('--epochs', type=int, default=default_epochs)
     parser.add_argument('--batch-size', type=int, default=default_batch, help='total batch size for all GPUs, -1 for autobatch')  # autobatch may not be implemented
@@ -392,7 +400,7 @@ def parse_opt(known=False):
 
 def main(opt, callbacks=Callbacks()):
     # Checks
-    set_logging(RANK)
+    # set_logging(RANK)
     if RANK in [-1, 0]:
         print_args(FILE.stem, opt)
         
@@ -403,7 +411,7 @@ def main(opt, callbacks=Callbacks()):
         with open(Path(ckpt).parent.parent / 'opt.yaml', errors='ignore') as f:
             opt = argparse.Namespace(**yaml.safe_load(f))  # replace
         opt.cfg, opt.weights, opt.resume = '', ckpt, True  # reinstate
-        LOGGER.info(f'Resuming training from {ckpt}')
+        # LOGGER.info(f'Resuming training from {ckpt}')
     else:
         opt.data, opt.cfg, opt.hyp, opt.weights, opt.project = \
             check_file(opt.data), check_yaml(opt.cfg), check_yaml(opt.hyp), str(opt.weights), str(opt.project)  # checks
@@ -428,7 +436,7 @@ def main(opt, callbacks=Callbacks()):
     if not opt.evolve:
         train(opt.hyp, opt, device, callbacks)
         if WORLD_SIZE > 1 and RANK == 0:
-            LOGGER.info('Destroying process group... ')
+            # LOGGER.info('Destroying process group... ')
             dist.destroy_process_group()
     
     # Evolve hyperparameters (optional)

@@ -10,7 +10,7 @@ import glob
 import os
 from multiprocessing.pool import Pool
 from tqdm import tqdm
-import logging
+# import logging
 from itertools import repeat
 # import torch.nn.functional as F
 from typing import List
@@ -27,7 +27,7 @@ from utils3D.augmentations import nifti_cutout
 
 
 # Configuration
-LOGGER = logging.getLogger(__name__)
+# LOGGER = logging.getLogger(__name__)
 IMG_FORMATS = ['nii', 'nii.gz']  # acceptable image suffixes, note nii.gz compatible by checking for presence of 'nii' in -2 place
 NUM_THREADS = min(8, os.cpu_count())  # number of multiprocessing threads
 default_size = 350 # edge length for testing
@@ -189,8 +189,8 @@ class LoadNiftisAndLabels(Dataset):
         if exists:
             d = f"Scanning '{cache_path}' images and labels... {nf} found, {nm} missing, {ne} empty, {nc} corrupted"
             tqdm(None, desc=prefix + d, total=n, initial=n)  # display cache results
-            if cache['msgs']:
-                logging.info('\n'.join(cache['msgs']))  # display warnings
+            # if cache['msgs']:
+                # logging.info('\n'.join(cache['msgs']))  # display warnings
         assert nf > 0 or not augment, f'{prefix}No labels in {cache_path}. Can not train without labels.'
 
         # Read cache
@@ -246,10 +246,10 @@ class LoadNiftisAndLabels(Dataset):
                 pbar.desc = f"{desc}{nf} found, {nm} missing, {ne} empty, {nc} corrupted"
 
         pbar.close()
-        if msgs:
-            logging.info('\n'.join(msgs))
-        if nf == 0:
-            logging.info(f'{prefix}WARNING: No labels found in {path}.')
+        # if msgs:
+        #     logging.info('\n'.join(msgs))
+        # if nf == 0:
+        #     logging.info(f'{prefix}WARNING: No labels found in {path}.')
         x['hash'] = get_hash(self.label_files + self.img_files)
         x['results'] = nf, nm, ne, nc, len(self.img_files)
         x['msgs'] = msgs  # warnings
@@ -257,9 +257,10 @@ class LoadNiftisAndLabels(Dataset):
         try:
             np.save(path, x)  # save cache for next time
             path.with_suffix('.cache.npy').rename(path)  # remove .npy suffix
-            logging.info(f'{prefix}New cache created: {path}')
+            # logging.info(f'{prefix}New cache created: {path}')
         except Exception as e:
-            logging.info(f'{prefix}WARNING: Cache directory {path.parent} is not writeable: {e}')  # path not writeable
+            print(f'{prefix}WARNING: Cache directory {path.parent} is not writeable: {e}')
+            # logging.info(f'{prefix}WARNING: Cache directory {path.parent} is not writeable: {e}')  # path not writeable
         return x
 
     def __len__(self):

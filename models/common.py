@@ -3,7 +3,7 @@
 Common modules
 """
 
-import logging
+# import logging
 # import math
 # import warnings
 # from copy import copy
@@ -23,7 +23,7 @@ import torch.nn as nn
 # from utils.plots import Annotator, colors
 # from utils.torch_utils import time_sync
 
-LOGGER = logging.getLogger(__name__)
+# LOGGER = logging.getLogger(__name__)
 
 
 def autopad(k, p=None):  # kernel, padding
