@@ -1,1 +1,1 @@
-These are functions from YOLOv5 that are used.  Files are named similarly to their original names, but contents may be substantially reduced.
+These are utility functions from YOLOv5 that are used.  Files are named similarly to their original names, but contents may be substantially reduced.  Included functions may have minor changes.

@@ -3,16 +3,16 @@
 PyTorch utils
 """
 
-import datetime
+# import datetime
 # import logging
 import math
 import os
-import platform
-import subprocess
+# import platform
+# import subprocess
 import time
 from contextlib import contextmanager
 from copy import deepcopy
-from pathlib import Path
+# from pathlib import Path
 
 import torch
 import torch.distributed as dist
@@ -40,24 +40,24 @@ def torch_distributed_zero_first(local_rank: int):
         dist.barrier(device_ids=[0])
 
 
-def date_modified(path=__file__):
-    # return human-readable file modification date, i.e. '2021-3-26'
-    t = datetime.datetime.fromtimestamp(Path(path).stat().st_mtime)
-    return f'{t.year}-{t.month}-{t.day}'
+# def date_modified(path=__file__):
+#     # return human-readable file modification date, i.e. '2021-3-26'
+#     t = datetime.datetime.fromtimestamp(Path(path).stat().st_mtime)
+#     return f'{t.year}-{t.month}-{t.day}'
 
 
-def git_describe(path=Path(__file__).parent):  # path must be a directory
-    # return human-readable git description, i.e. v5.0-5-g3e25f1e https://git-scm.com/docs/git-describe
-    s = f'git -C {path} describe --tags --long --always'
-    try:
-        return subprocess.check_output(s, shell=True, stderr=subprocess.STDOUT).decode()[:-1]
-    except subprocess.CalledProcessError as e:
-        return ''  # not a git repository
+# def git_describe(path=Path(__file__).parent):  # path must be a directory
+#     # return human-readable git description, i.e. v5.0-5-g3e25f1e https://git-scm.com/docs/git-describe
+#     s = f'git -C {path} describe --tags --long --always'
+#     try:
+#         return subprocess.check_output(s, shell=True, stderr=subprocess.STDOUT).decode()[:-1]
+#     except subprocess.CalledProcessError as e:
+#         return ''  # not a git repository
 
 
 def select_device(device='', batch_size=None):
     # device = 'cpu' or '0' or '0,1,2,3'
-    s = f'YOLOv5 🚀 {git_describe() or date_modified()} torch {torch.__version__} '  # string
+    # s = f'YOLOv5 🚀 {git_describe() or date_modified()} torch {torch.__version__} '  # string
     device = str(device).strip().lower().replace('cuda:', '')  # to string, 'cuda:0' to '0'
     cpu = device == 'cpu'
     if cpu:
@@ -72,12 +72,12 @@ def select_device(device='', batch_size=None):
         n = len(devices)  # device count
         if n > 1 and batch_size:  # check batch_size is divisible by device_count
             assert batch_size % n == 0, f'batch-size {batch_size} not multiple of GPU count {n}'
-        space = ' ' * (len(s) + 1)
+        # space = ' ' * (len(s) + 1)
         for i, d in enumerate(devices):
             p = torch.cuda.get_device_properties(i)
-            s += f"{'' if i == 0 else space}CUDA:{d} ({p.name}, {p.total_memory / 1024 ** 2}MB)\n"  # bytes to MB
-    else:
-        s += 'CPU\n'
+            # s += f"{'' if i == 0 else space}CUDA:{d} ({p.name}, {p.total_memory / 1024 ** 2}MB)\n"  # bytes to MB
+    # else:
+    #     s += 'CPU\n'
 
     # LOGGER.info(s.encode().decode('ascii', 'ignore') if platform.system() == 'Windows' else s)  # emoji-safe
     return torch.device('cuda:0' if cuda else 'cpu')

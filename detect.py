@@ -20,7 +20,7 @@ if str(ROOT) not in sys.path:
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 # 2D YOLO imports
-from utils.general import check_requirements, print_args, increment_path, check_suffix, check_img_size, colorstr #, set_logging
+from utils.general import print_args, increment_path, check_suffix, check_img_size, colorstr #, set_logging
 from utils.torch_utils import select_device
 
 # 3D YOLO imports
@@ -127,8 +127,8 @@ def run(weights, # model.pt path(s)
                 for *zxyzxy, conf, cls in reversed(det):
                     zxydwh = (zxyzxy2zxydwh(torch.tensor(zxyzxy).view(1, 6)) / gn).view(-1).tolist()  # normalized zxydwh
                     line = (cls, *zxydwh, conf)  # label format
-                    print('cls z x y d w h conf')
-                    print(('%g ' * len(line)).rstrip() % line + '\n')
+                    print('\ncls z x y d w h conf')
+                    print(('%g ' * len(line)).rstrip() % line)
                     
                 # Write results
                 if save_txt:  # Write to file
@@ -169,7 +169,6 @@ def parse_opt():
 
 
 def main(opt):
-    check_requirements(exclude=('tensorboard', 'thop'))
     run(**vars(opt))
     
     

@@ -120,8 +120,8 @@ def model_info(model, verbose=False, img_size=default_size):
         verbose (bool, optional): Whether or not to print named parameters. Defaults to False.
         img_size (int, optional): Image size for the loaded model. Defaults to default_size.
     """
-    n_p = sum(x.numel() for x in model.parameters())  # number parameters
-    n_g = sum(x.numel() for x in model.parameters() if x.requires_grad)  # number gradients
+    # n_p = sum(x.numel() for x in model.parameters())  # number parameters
+    # n_g = sum(x.numel() for x in model.parameters() if x.requires_grad)  # number gradients
     if verbose:
         print(f"{'layer':>5} {'name':>40} {'gradient':>9} {'parameters':>12} {'shape':>20} {'mu':>10} {'sigma':>10}")
         for i, (name, p) in enumerate(model.named_parameters()):

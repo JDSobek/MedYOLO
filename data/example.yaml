@@ -2,8 +2,8 @@
 # Train command: python train.py --data example.yaml
 
 # train and val data as 1) directory: path/images/, 2) file: path/images.txt, or 3) list: [path1/images/, path2/images/]
-train: /path_to_dataset/images/train/
-val: /path_to_dataset/images/val/
+train: /parent_directory/images/train/
+val: /parent_directory/images/val/
 
 # number of classes
 nc: 2

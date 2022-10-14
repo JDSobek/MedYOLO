@@ -143,7 +143,7 @@ class LoadNiftisAndLabels(Dataset):
     """YOLO3D Pytorch Dataset for training."""
     cache_version = 0.61  # dataset labels *.cache version
 
-    def __init__(self, path, img_size=default_size, batch_size=4, augment=False, hyp=None,
+    def __init__(self, path, img_size=default_size, batch_size=4, augment=False, hyp=None, single_cls=False,
                  stride=32, pad=0.0, prefix=''):
         """Initialization for the training Dataset
 
@@ -214,6 +214,8 @@ class LoadNiftisAndLabels(Dataset):
             if include_class:
                 j = (label[:, 0:1] == include_class_array).any(1)
                 self.labels[i] = label[j]
+            if single_cls:  # single-class training, merge all classes into 0
+                self.labels[i][:, 0] = 0
 
         self.imgs, self.img_npy = [None] * n, [None] * n
 
@@ -345,7 +347,7 @@ class LoadNiftisAndLabels(Dataset):
         return torch.stack(img, 0), torch.cat(label, 0), path, shapes
 
 
-def nifti_dataloader(path: str, imgsz: int, batch_size: int, stride: int, hyp=None, augment=False, pad=0.0,
+def nifti_dataloader(path: str, imgsz: int, batch_size: int, stride: int, single_cls=False, hyp=None, augment=False, pad=0.0,
                      rank=-1, workers=8, prefix=''):
     """This is the dataloader used in the training process
     The same as that of 2D YOLO, just built around a different Dataset definition
@@ -372,7 +374,7 @@ def nifti_dataloader(path: str, imgsz: int, batch_size: int, stride: int, hyp=No
                                       augment=augment,
                                       hyp=hyp,
                                       # rect=rect,  # rectangular training
-                                      # single_cls=single_cls,
+                                      single_cls=single_cls,
                                       stride=stride,
                                       pad=pad,
                                       prefix=prefix)

@@ -22,7 +22,7 @@ if str(ROOT) not in sys.path:
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 # 2D YOLO imports
-from utils.general import check_dataset, check_img_size, check_requirements, check_suffix, check_yaml, increment_path, colorstr, print_args #, set_logging
+from utils.general import check_dataset, check_img_size, check_suffix, check_yaml, increment_path, colorstr, print_args #, set_logging
 from utils.metrics import ap_per_class
 from utils.plots import plot_val_study
 from utils.torch_utils import select_device, time_sync
@@ -140,7 +140,7 @@ def run(data,
             model(torch.zeros(1, 1, imgsz, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
         pad = 0.0 if task == 'speed' else 0.5
         task = task if task in ('train', 'val', 'test') else 'val'  # path to train/val/test images
-        dataloader = nifti_dataloader(data[task], imgsz, batch_size, gs, pad=pad, prefix=colorstr(f'{task}: '))[0]
+        dataloader = nifti_dataloader(data[task], imgsz, batch_size, gs, single_cls=single_cls, pad=pad, prefix=colorstr(f'{task}: '))[0]
         
     seen = 0
     confusion_matrix = ConfusionMatrix(nc=nc)
@@ -285,7 +285,6 @@ def parse_opt():
     
 def main(opt):
     # set_logging()
-    check_requirements(exclude=('tensorboard', 'thop'))
 
     if opt.task in ('train', 'val', 'test'):  # run normally
         run(**vars(opt))

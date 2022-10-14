@@ -19,7 +19,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.nn as nn
 import yaml
 from torch.cuda import amp
-from torch.optim import Adam, lr_scheduler
+from torch.optim import Adam, SGD, lr_scheduler
 from tqdm import tqdm
 
 # set path for local imports
@@ -30,7 +30,7 @@ if str(ROOT) not in sys.path:
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 # 2D YOLO imports
-from utils.general import methods, colorstr, labels_to_class_weights, increment_path, print_args, \
+from utils.general import colorstr, labels_to_class_weights, increment_path, print_args, \
     check_yaml, check_file, get_latest_run, one_cycle, print_mutation, strip_optimizer #, set_logging
 from utils.callbacks import Callbacks
 from utils.torch_utils import select_device, de_parallel, EarlyStopping, ModelEMA, torch_distributed_zero_first
@@ -62,9 +62,11 @@ default_batch = 8
 
 def train(hyp, opt, device, callbacks):
     # parsing the arguments
-    save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze, = \
-        Path(opt.save_dir), opt.epochs, opt.batch_size, opt.weights, opt.single_cls, opt.evolve, opt.data, opt.cfg, \
-        opt.resume, opt.noval, opt.nosave, opt.workers, opt.freeze
+    save_dir, epochs, batch_size, single_cls, evolve, data, cfg, resume, noval, nosave, freeze = \
+        Path(opt.save_dir), opt.epochs, opt.batch_size, opt.single_cls, opt.evolve, opt.data, opt.cfg, \
+        opt.resume, opt.noval, opt.nosave, opt.freeze
+    
+    weights, workers = opt.weights, opt.workers
     
     # Directories
     w = save_dir / 'weights'  # weights dir
@@ -83,19 +85,7 @@ def train(hyp, opt, device, callbacks):
     with open(save_dir / 'opt.yaml', 'w') as f:
         yaml.safe_dump(vars(opt), f, sort_keys=False)
     data_dict = None
-
-    # # Loggers
-    # if RANK in [-1, 0]:
-    #     loggers = Loggers(save_dir, weights, opt, hyp, LOGGER)  # loggers instance
-    #     if loggers.wandb:
-    #         data_dict = loggers.wandb.data_dict
-    #         if resume:
-    #             weights, epochs, hyp = opt.weights, opt.epochs, opt.hyp
-
-    #     # Register actions
-    #     for k in methods(loggers):
-    #         callbacks.register_action(k, callback=getattr(loggers, k))
-    
+   
     # Config
     plots = False
     cuda = device.type != 'cpu'
@@ -115,6 +105,17 @@ def train(hyp, opt, device, callbacks):
 
     train_path, val_path = data_dict['train'], data_dict['val']
     
+    
+    # Freeze
+    freeze = [f'model.{x}.' for x in range(freeze)]  # layers to freeze
+    for k, v in model.named_parameters():
+        v.requires_grad = True  # train all layers
+        if any(x in k for x in freeze):
+            print(f'freezing {k}')
+            v.requires_grad = False
+    
+    
+    
     # Image size
     imgsz = opt.imgsz
     stride = model.stride
@@ -133,7 +134,11 @@ def train(hyp, opt, device, callbacks):
         elif hasattr(v, 'weight') and isinstance(v.weight, nn.Parameter):  # weight (with decay)
             g1.append(v.weight)
 
-    optimizer = Adam(g0, lr=hyp['lr0'], betas=(hyp['momentum'], 0.999))  # adjust beta1 to momentum
+    if opt.adam:
+        optimizer = Adam(g0, lr=hyp['lr0'], betas=(hyp['momentum'], 0.999))  # adjust beta1 to momentum
+    else:
+        optimizer = SGD(g0, lr=hyp['lr0'], momentum=hyp['momentum'], nesterov=True)   
+    
     optimizer.add_param_group({'params': g1, 'weight_decay': hyp['weight_decay']})  # add g1 with weight_decay
     optimizer.add_param_group({'params': g2})  # add g2 (biases)
     del g0, g1, g2
@@ -153,7 +158,9 @@ def train(hyp, opt, device, callbacks):
                                                    imgsz=imgsz,
                                                    batch_size=batch_size,
                                                    hyp=hyp,
+                                                   single_cls=single_cls,
                                                    stride=stride,
+                                                   rank=LOCAL_RANK,
                                                    augment=True)
     mlc = int(np.concatenate(train_dataset.labels, 0)[:, 0].max())  # max label class
     nb = len(train_loader)  # number of batches
@@ -164,7 +171,8 @@ def train(hyp, opt, device, callbacks):
         val_loader = nifti_dataloader(val_path,
                                       imgsz=imgsz,
                                       batch_size=batch_size,
-                                      stride=stride)[0]
+                                      stride=stride,
+                                      single_cls=single_cls)[0]
 
         if not resume:
             # Anchors
@@ -237,8 +245,8 @@ def train(hyp, opt, device, callbacks):
 
                 if RANK != -1:
                     loss *= WORLD_SIZE  # gradient averaged between devices in DDP mode
-                if opt.quad:
-                    loss *= 4.
+                # if opt.quad:
+                #     loss *= 4.
             
             # Backward
             scaler.scale(loss).backward()
@@ -258,7 +266,8 @@ def train(hyp, opt, device, callbacks):
                 mem = f'{torch.cuda.memory_reserved() / 1E9 if torch.cuda.is_available() else 0:.3g}G'  # (GB)
                 pbar.set_description(('%10s' * 2 + '%10.4g' * 5) % (
                     f'{epoch}/{epochs - 1}', mem, *mloss, targets.shape[0], imgs.shape[-1]))
-                callbacks.run('on_train_batch_end', ni, model, imgs, targets, paths, plots, opt.sync_bn)
+                # callbacks.run('on_train_batch_end', ni, model, imgs, targets, paths, plots, opt.sync_bn)
+                callbacks.run('on_train_batch_end', ni, model, imgs, targets, paths, plots, False)
             # end batch ------------------------------------------------------------------------------------------------
             
         # Scheduler
@@ -337,7 +346,6 @@ def train(hyp, opt, device, callbacks):
                                             callbacks=callbacks,
                                             compute_loss=compute_loss)  # val best model with plots
 
-
         callbacks.run('on_train_end', last, best, plots, epoch, results)
         # LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}")
 
@@ -347,13 +355,7 @@ def train(hyp, opt, device, callbacks):
 
 def parse_opt(known=False):
     # parses the options in the arguments
-    # many of these options aren't implemented yet, and are left for now for reference
-    
-    # save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze, = \
-    #     Path(opt.save_dir), opt.epochs, opt.batch_size, opt.weights, opt.single_cls, opt.evolve, opt.data, opt.cfg, \
-    #     opt.resume, opt.noval, opt.nosave, opt.workers, opt.freeze
-    
-    
+    # many of these options aren't implemented yet, and are left for now for reference  
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', type=str, default='', help='initial weights path')  # weights start randomly initialized
     parser.add_argument('--cfg', type=str, default=ROOT / 'models3D/yolo3Ds.yaml', help='model.yaml path') # Testing new architecture for YOLO3D
@@ -362,37 +364,37 @@ def parse_opt(known=False):
     parser.add_argument('--epochs', type=int, default=default_epochs)
     parser.add_argument('--batch-size', type=int, default=default_batch, help='total batch size for all GPUs, -1 for autobatch')  # autobatch may not be implemented
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=default_size, help='train, val image size (pixels)')
-    parser.add_argument('--rect', action='store_true', help='rectangular training')
+    # parser.add_argument('--rect', action='store_true', help='rectangular training')
     parser.add_argument('--resume', nargs='?', const=True, default=False, help='resume most recent training')
     parser.add_argument('--nosave', action='store_true', help='only save final checkpoint')
     parser.add_argument('--noval', action='store_true', help='only validate final epoch')
     parser.add_argument('--noautoanchor', action='store_true', help='disable autoanchor check')
     parser.add_argument('--evolve', type=int, nargs='?', const=300, help='evolve hyperparameters for x generations')
-    parser.add_argument('--bucket', type=str, default='', help='gsutil bucket')
-    parser.add_argument('--cache', type=str, nargs='?', const='ram', help='--cache images in "ram" (default) or "disk"')
+    # parser.add_argument('--bucket', type=str, default='', help='gsutil bucket')
+    # parser.add_argument('--cache', type=str, nargs='?', const='ram', help='--cache images in "ram" (default) or "disk"')
     parser.add_argument('--image-weights', action='store_true', help='use weighted image selection for training')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
-    parser.add_argument('--multi-scale', action='store_true', help='vary img-size +/- 50%%')
+    # parser.add_argument('--multi-scale', action='store_true', help='vary img-size +/- 50%%')
     parser.add_argument('--single-cls', action='store_true', help='train multi-class data as single-class')
     parser.add_argument('--adam', action='store_true', help='use torch.optim.Adam() optimizer')
-    parser.add_argument('--sync-bn', action='store_true', help='use SyncBatchNorm, only available in DDP mode')
+    # parser.add_argument('--sync-bn', action='store_true', help='use SyncBatchNorm, only available in DDP mode')
     parser.add_argument('--workers', type=int, default=8, help='maximum number of dataloader workers')
     parser.add_argument('--project', default=ROOT / 'runs/train', help='save to project/name')
     parser.add_argument('--name', default='exp', help='save to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
-    parser.add_argument('--quad', action='store_true', help='quad dataloader')
-    parser.add_argument('--linear-lr', action='store_true', help='linear LR')
+    # parser.add_argument('--quad', action='store_true', help='quad dataloader')
+    # parser.add_argument('--linear-lr', action='store_true', help='linear LR')
     parser.add_argument('--label-smoothing', type=float, default=0.0, help='Label smoothing epsilon')
     parser.add_argument('--patience', type=int, default=100, help='EarlyStopping patience (epochs without improvement)')
     parser.add_argument('--freeze', type=int, default=0, help='Number of layers to freeze. backbone=10, all=24')
     parser.add_argument('--save-period', type=int, default=-1, help='Save checkpoint every x epochs (disabled if < 1)')
     parser.add_argument('--local_rank', type=int, default=-1, help='DDP parameter, do not modify')
 
-    # Weights & Biases arguments
-    parser.add_argument('--entity', default=None, help='W&B: Entity')
-    parser.add_argument('--upload_dataset', action='store_true', help='W&B: Upload dataset as artifact table')
-    parser.add_argument('--bbox_interval', type=int, default=-1, help='W&B: Set bounding-box image logging interval')
-    parser.add_argument('--artifact_alias', type=str, default='latest', help='W&B: Version of dataset artifact to use')
+    # # Weights & Biases arguments
+    # parser.add_argument('--entity', default=None, help='W&B: Entity')
+    # parser.add_argument('--upload_dataset', action='store_true', help='W&B: Upload dataset as artifact table')
+    # parser.add_argument('--bbox_interval', type=int, default=-1, help='W&B: Set bounding-box image logging interval')
+    # parser.add_argument('--artifact_alias', type=str, default='latest', help='W&B: Version of dataset artifact to use')
 
     opt = parser.parse_known_args()[0] if known else parser.parse_args()
     return opt

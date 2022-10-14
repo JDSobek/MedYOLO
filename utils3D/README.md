@@ -1,1 +1,1 @@
-This folder contains the code necessary to process 3D data.
+This folder contains additional utility functions rewritten to operate on 3D data.  Datasets are currently written for NIfTI data with a focus on CT scans, normalization methods may need adaptation for different data modalities.  Some functionality, particularly most of YOLOv5's augmentations, is currently unimplemented due to incompatibility with standard 2D imaging libraries such as PIL and OpenCV.  Loggers are also unimplemented.

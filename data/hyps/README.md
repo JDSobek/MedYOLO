@@ -1,1 +1,1 @@
-These are hyperparameter configuration files from YOLOv5 that may work for your data.
+These are hyperparameter configuration files from YOLOv5 that may work for your data.  The default is hyp.scratch.yaml.
