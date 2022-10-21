@@ -23,7 +23,7 @@ from utils.datasets import InfiniteDataLoader, get_hash
 
 # 3D YOLO imports
 from utils3D.general import zxyzxy2zxydwhn, zxydwhn2zxyzxy
-from utils3D.augmentations import nifti_cutout
+from utils3D.augmentations import nifti_cutout, random_zoom
 
 
 # Configuration
@@ -284,41 +284,31 @@ class LoadNiftisAndLabels(Dataset):
 
         hyp = self.hyp # used to configure augmentation
         
-        mosaic = False # self.mosaic and random.random() < hyp['mosaic']
-        if mosaic:
-            pass
-            # # Load mosaic
-            # img, labels = load_mosaic(self, index)
-            # shapes = None
+        # Load image
+        img, (d0, h0, w0), (d, h, w), affine = load_nifti(self, index)
 
-            # # MixUp augmentation
-            # if random.random() < hyp['mixup']:
-            #     img, labels = mixup(img, labels, *load_mosaic(self, random.randint(0, self.n - 1)))
-        else:
-            # Load image
-            img, (d0, h0, w0), (d, h, w) = load_nifti(self, index)
+        # Letterbox
+        # shape = (self.img_size, self.img_size, self.img_size) # not adding rectangular training yet
+        # img, ratio, pad = letterbox(img, shape, auto=False, scaleup=self.augment) # not implemented
+        # ratio = (1, 1, 1) # no letterboxing so the shape doesn't change and the ratios are all 1
+        pad = (0, 0, 0) # shape not changing so not padding any side
+        shapes = (d0, h0, w0), ((d/d0, h/h0, w/w0), pad)
 
-            # Letterbox
-            shape = (self.img_size, self.img_size, self.img_size) # not adding rectangular training yet
-            # img, ratio, pad = letterbox(img, shape, auto=False, scaleup=self.augment) # not implemented
-            ratio = (1, 1, 1) # no letterboxing so the shape doesn't change and the ratios are all 1
-            pad = (0, 0, 0) # shape not changing so not padding any side
-            shapes = (d0, h0, w0), ((d/d0, h/h0, w/w0), pad)
-
-            # Label transformation is done for compatibility with the random perspective augmentation function
-            labels = self.labels[index].copy()
-            if labels.size:  # normalized zxydwh to pixel zxyzxy format
-                labels[:, 1:] = zxydwhn2zxyzxy(labels[:, 1:], d, w, h, pad[0], pad[1], pad[2])
-
-            if self.augment:
-                # random perspective augmentation
-                pass
-
+        labels = self.labels[index].copy()
         nl = len(labels)  # number of labels
-        if nl:
-            labels[:, 1:7] = zxyzxy2zxydwhn(labels[:, 1:7], d=img.shape[1], w=img.shape[3], h=img.shape[2], clip=True, eps=1E-3)
 
-        if self.augment:
+        if self.augment:           
+            # Label transformation is done to make certain augmentations more straightforward
+            if labels.size:  # normalized zxydwh to pixel zxyzxy format
+                labels[:, 1:] = zxydwhn2zxyzxy(labels[:, 1:], d, w, h, pad[0], pad[1], pad[2])                    
+
+            # random zoom
+            img, labels = random_zoom(img, labels)
+        
+            # transformation of labels back to standard format
+            if nl:
+                labels[:, 1:7] = zxyzxy2zxydwhn(labels[:, 1:7], d=img.shape[1], w=img.shape[3], h=img.shape[2], clip=True, eps=1E-3)
+            
             # Albumentations
             
             # HSV color-space
@@ -480,9 +470,10 @@ def open_nifti(filepath: str):
     """
     nifti = nib.load(filepath)
     nifti_array = np.array(nifti.dataobj)
+    nifti_affine = nifti.affine
     assert nifti_array is not None, 'Image Not Found ' + filepath
     nifti_tensor = torch.tensor(nifti_array, dtype=torch.float)
-    return nifti_tensor
+    return nifti_tensor, nifti_affine
 
 
 def transpose_nifti_shape(nifti_tensor: torch.Tensor):
@@ -537,7 +528,7 @@ def load_nifti(self, i):
     """
     # loads 1 image from dataset index 'i'
     path = self.img_files[i]
-    im = open_nifti(path)
+    im, affine = open_nifti(path)
 
     # reshape im from height, width, depth to depth, height, width to make it compatible with torch convolutions
     im = transpose_nifti_shape(im)
@@ -547,7 +538,7 @@ def load_nifti(self, i):
     # resize im to self.img_size
     im = change_nifti_size(im, self.img_size)
 
-    return im, (d0, h0, w0), im.size()[1:]
+    return im, (d0, h0, w0), im.size()[1:], affine
 
 
 def normalize_CT(imgs):

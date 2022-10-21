@@ -155,7 +155,8 @@ def run(data,
         t1 = time_sync()
         img = img.to(device, non_blocking=True)
         img = img.half() if half else img.float()  # uint8 to fp16/32
-        # this is standardization for Hounsfield units, may see performance improvements by clipping images to +/- 1024.
+        # Normalization for Hounsfield units, may see performance improvements by clipping images to +/- 1024.
+        # This should be changed for scans that are not CT
         img = (img + 1024.) / 2048.
         targets = targets.to(device)
         nb, _, depth, height, width = img.shape  # batch size, channels, depth, height, width

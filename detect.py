@@ -90,6 +90,8 @@ def run(weights, # model.pt path(s)
     
     for path, img, im0s in dataset:
         img = img.half() if half else img.float()  # uint8 to fp16/32
+        # Normalization for Hounsfield units, may see performance improvements by clipping images to +/- 1024.
+        # This should be changed for scans that are not CT
         img = (img.to(device, non_blocking=True).float() + 1024.) / 2048.0  # int to float32, -1024-1024 to 0.0-1.0
         if len(img.shape) == 4: # if only has channel, z, x, y
             img = img[None]  # expand for batch dim

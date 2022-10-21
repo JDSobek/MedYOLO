@@ -1,6 +1,6 @@
 """
 Training script for 3D YOLO.
-Example cmd line call: python train.py --data example.yaml
+Example cmd line call: python train.py --data example.yaml --adam
 """
 
 # standard library imports
@@ -31,9 +31,9 @@ ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 # 2D YOLO imports
 from utils.general import colorstr, labels_to_class_weights, increment_path, print_args, \
-    check_yaml, check_file, get_latest_run, one_cycle, print_mutation, strip_optimizer #, set_logging
+    check_yaml, check_file, get_latest_run, one_cycle, print_mutation, strip_optimizer, check_suffix
 from utils.callbacks import Callbacks
-from utils.torch_utils import select_device, de_parallel, EarlyStopping, ModelEMA, torch_distributed_zero_first
+from utils.torch_utils import select_device, de_parallel, EarlyStopping, ModelEMA, torch_distributed_zero_first, intersect_dicts
 from utils.metrics import fitness
 from utils.plots import plot_evolve
 # from utils.loggers import Loggers
@@ -62,11 +62,9 @@ default_batch = 8
 
 def train(hyp, opt, device, callbacks):
     # parsing the arguments
-    save_dir, epochs, batch_size, single_cls, evolve, data, cfg, resume, noval, nosave, freeze = \
-        Path(opt.save_dir), opt.epochs, opt.batch_size, opt.single_cls, opt.evolve, opt.data, opt.cfg, \
-        opt.resume, opt.noval, opt.nosave, opt.freeze
-    
-    weights, workers = opt.weights, opt.workers
+    save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze = \
+        Path(opt.save_dir), opt.epochs, opt.batch_size, opt.weights, opt.single_cls, opt.evolve, opt.data, opt.cfg, \
+        opt.resume, opt.noval, opt.nosave, opt.workers, opt.freeze
     
     # Directories
     w = save_dir / 'weights'  # weights dir
@@ -95,7 +93,17 @@ def train(hyp, opt, device, callbacks):
     names = ['item'] if single_cls and len(data_dict['names']) != 1 else data_dict['names']  # class names
     
     # Model
-    model = Model(cfg = cfg, ch=1, nc=nc, anchors=hyp.get('anchors')).to(device)
+    check_suffix(weights, '.pt')
+    pretrained = weights.endswith('.pt')
+    if pretrained:
+        ckpt = torch.load(weights,map_location=device)  # load checkpoint
+        model = Model(cfg or ckpt['model'].yaml, ch=1, nc=nc, anchors=hyp.get('anchors')).to(device) # create model
+        exclude = ['anchor'] if (cfg or hyp.get('anchors')) and not resume else []  # exclude keys
+        csd = ckpt['model'].float().state_dict()  # checkpoint state_dict as FP32
+        csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
+        model.load_state_dict(csd, strict=False)  # load
+    else:        
+        model = Model(cfg = cfg, ch=1, nc=nc, anchors=hyp.get('anchors')).to(device)
     
     # loads from models folder
     with open(data, errors='ignore') as f:
@@ -105,7 +113,6 @@ def train(hyp, opt, device, callbacks):
 
     train_path, val_path = data_dict['train'], data_dict['val']
     
-    
     # Freeze
     freeze = [f'model.{x}.' for x in range(freeze)]  # layers to freeze
     for k, v in model.named_parameters():
@@ -113,8 +120,6 @@ def train(hyp, opt, device, callbacks):
         if any(x in k for x in freeze):
             print(f'freezing {k}')
             v.requires_grad = False
-    
-    
     
     # Image size
     imgsz = opt.imgsz
@@ -161,6 +166,7 @@ def train(hyp, opt, device, callbacks):
                                                    single_cls=single_cls,
                                                    stride=stride,
                                                    rank=LOCAL_RANK,
+                                                   workers=workers,
                                                    augment=True)
     mlc = int(np.concatenate(train_dataset.labels, 0)[:, 0].max())  # max label class
     nb = len(train_loader)  # number of batches
@@ -172,7 +178,8 @@ def train(hyp, opt, device, callbacks):
                                       imgsz=imgsz,
                                       batch_size=batch_size,
                                       stride=stride,
-                                      single_cls=single_cls)[0]
+                                      single_cls=single_cls,
+                                      workers=workers)[0]
 
         if not resume:
             # Anchors
@@ -198,11 +205,11 @@ def train(hyp, opt, device, callbacks):
     model.names = names
     
     # Start training
-    t0 = time.time()
+    # t0 = time.time()
     nw = max(round(hyp['warmup_epochs'] * nb), 1000)  # number of warmup iterations, max(3 epochs, 1k iterations)
     # nw = min(nw, (epochs - start_epoch) / 2 * nb)  # limit warmup to < 1/2 of training
     last_opt_step = -1
-    maps = np.zeros(nc)  # mAP per class
+    # maps = np.zeros(nc)  # mAP per class
     results = (0, 0, 0, 0, 0, 0, 0)  # P, R, mAP@.5, mAP@.5-.95, val_loss(box, obj, cls)
     scheduler.last_epoch = start_epoch - 1  # do not move
     scaler = amp.GradScaler(enabled=cuda)
@@ -224,7 +231,7 @@ def train(hyp, opt, device, callbacks):
         # train loop
         for i, (imgs, targets, paths, _) in pbar:  # batch -------------------------------------------------------------
             ni = i + nb * epoch  # number integrated batches (since train start)
-            # Normalization
+            # Normalization, for non-CT images this function should be replaced
             imgs = normalize_CT(imgs.to(device, non_blocking=True).float())  # int to float32, -1024-1024 to 0.0-1.0
 
             # Warmup
@@ -281,7 +288,8 @@ def train(hyp, opt, device, callbacks):
             ema.update_attr(model, include=['yaml', 'nc', 'hyp', 'names', 'stride', 'class_weights'])
             final_epoch = (epoch + 1 == epochs) or stopper.possible_stop
             if not noval or final_epoch:  # Calculate mAP
-                results, maps, _ = val.run(data_dict,
+                # results, maps, _ = val.run(data_dict,
+                results, _, _ = val.run(data_dict,
                                            batch_size=batch_size // WORLD_SIZE * 2,
                                            imgsz=imgsz,
                                            model=ema.ema,
@@ -355,7 +363,7 @@ def train(hyp, opt, device, callbacks):
 
 def parse_opt(known=False):
     # parses the options in the arguments
-    # many of these options aren't implemented yet, and are left for now for reference  
+    # many of these options aren't implemented yet, and are left for now for reference, these should all be commented out
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', type=str, default='', help='initial weights path')  # weights start randomly initialized
     parser.add_argument('--cfg', type=str, default=ROOT / 'models3D/yolo3Ds.yaml', help='model.yaml path') # Testing new architecture for YOLO3D
