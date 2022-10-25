@@ -45,19 +45,29 @@ def nifti_cutout(im, labels, p=0.5):
     return labels
 
 
-def random_zoom(im: torch.Tensor, labels, p=1.0):
-    # Randomly zooms in or out of a random part of the input image
-    y = labels.clone() if isinstance(labels, torch.Tensor) else np.copy(labels)
+def random_zoom(im: torch.Tensor, labels, max_zoom=1.5, min_zoom=0.7, p=0.5):
+    """Randomly zooms in or out of a random part of the input image.
+
+    Args:
+        im (torch.Tensor): 3-D tensor to be augmented.
+        labels (List[float]): Med YOLO labels corresponding to im. class z1 x1 y1 z2 x2 y2
+        max_zoom (float, optional): maximum edge length multiplier. Defaults to 1.5.
+        min_zoom (_type_, optional): minimum edge length multiplier. Defaults to 0.7.
+
+    Returns:
+        im: Augmented tensor.
+        y: Adjusted labels.
+    """
     
-    print(im.shape)
+    y = labels.clone() if isinstance(labels, torch.Tensor) else np.copy(labels)
     
     if random.random() < p:
         # retrieve original image shape (this is resized to imgsz x imgsz x imgsz by this point in the dataloader)
         d, w, h = im.shape[1:]
         
         # setting limits for how far augmentation will zoom in or out
-        max_zoom_factor = 1.5
-        min_zoom_factor = 0.7
+        max_zoom_factor = max_zoom
+        min_zoom_factor = min_zoom
         
         # choosing the zoom level of the final image
         zoom_factor = random.uniform(min_zoom_factor, max_zoom_factor)
@@ -90,7 +100,7 @@ def random_zoom(im: torch.Tensor, labels, p=1.0):
             xmax = xmin + w
             ymax = ymin + h
             
-            im = im[:,zmin:zmax+1, xmin:xmax+1, ymin:ymax+1]
+            im = im[:,zmin:zmax, xmin:xmax, ymin:ymax]
 
             # move labels to correspond to new center of zoom
             y[:, 1] = y[:, 1] - zmin
