@@ -125,7 +125,7 @@ class LoadNiftis(Dataset):
 
         # Read current image
         self.count += 1
-        img0 = open_nifti(path)
+        img0, affine = open_nifti(path)
         assert img0 is not None, 'Image Not Found ' + path
         print(f'\nimage {self.count}/{self.nf} {path}: ', end='')
 
@@ -467,6 +467,7 @@ def open_nifti(filepath: str):
 
     Returns:
         nifti_tensor (torch.tensor): Tensor containing the nifti image data
+        nifti_affine: affine array for the nifti
     """
     nifti = nib.load(filepath)
     nifti_array = np.array(nifti.dataobj)
