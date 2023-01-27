@@ -162,12 +162,10 @@ def run(data,
             # This should be changed for scans that are not CT
             img = (img + 1024.) / 2048.
         elif norm.lower() == 'mr':
-            img = img.to(device, non_blocking=True).float()
             mean = torch.mean(img, dim=[1,2,3,4], keepdim=True)
             std_dev = torch.std(img, dim=[1,2,3,4], keepdim=True)
             img = (img - mean)/std_dev
         else:
-            img = img.to(device, non_blocking=True).float()
             raise Exception("You'll need to write your own normalization algorithm.")
         
         targets = targets.to(device)

@@ -90,6 +90,7 @@ def run(weights, # model.pt path(s)
     dt, seen = [0.0, 0.0, 0.0], 0
     
     for path, img, im0s in dataset:
+        img = img.to(device, non_blocking=True)
         img = img.half() if half else img.float()  # uint8 to fp16/32
 
         if len(img.shape) == 4: # if only has channel, z, x, y dimensions but no batch
@@ -98,14 +99,12 @@ def run(weights, # model.pt path(s)
         if norm.lower() == 'ct':
             # Normalization for Hounsfield units, may see performance improvements by clipping images to +/- 1024.
             # This should be changed for scans that are not CT
-            img = (img.to(device, non_blocking=True).float() + 1024.) / 2048.0  # int to float32, -1024-1024 to 0.0-1.0
+            img = (img + 1024.) / 2048.0  # int to float32, -1024-1024 to 0.0-1.0
         elif norm.lower() == 'mr':
-            img = img.to(device, non_blocking=True).float()
             mean = torch.mean(img, dim=[1,2,3,4], keepdim=True)
             std_dev = torch.std(img, dim=[1,2,3,4], keepdim=True)
             img = (img - mean)/std_dev
         else:
-            img = img.to(device, non_blocking=True).float()
             raise Exception("You'll need to write your own normalization algorithm.")
         
         # Inference
