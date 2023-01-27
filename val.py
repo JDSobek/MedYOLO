@@ -101,6 +101,7 @@ def run(data,
         plots=True,
         callbacks=Callbacks(),
         compute_loss=None,
+        norm='CT'
         ):
     
     # Initialize/load model and set device
@@ -155,9 +156,20 @@ def run(data,
         t1 = time_sync()
         img = img.to(device, non_blocking=True)
         img = img.half() if half else img.float()  # uint8 to fp16/32
-        # Normalization for Hounsfield units, may see performance improvements by clipping images to +/- 1024.
-        # This should be changed for scans that are not CT
-        img = (img + 1024.) / 2048.
+        
+        if norm.lower() == 'ct':
+            # Normalization for Hounsfield units, may see performance improvements by clipping images to +/- 1024.
+            # This should be changed for scans that are not CT
+            img = (img + 1024.) / 2048.
+        elif norm.lower() == 'mr':
+            img = img.to(device, non_blocking=True).float()
+            mean = torch.mean(img, dim=[1,2,3,4], keepdim=True)
+            std_dev = torch.std(img, dim=[1,2,3,4], keepdim=True)
+            img = (img - mean)/std_dev
+        else:
+            img = img.to(device, non_blocking=True).float()
+            raise Exception("You'll need to write your own normalization algorithm.")
+        
         targets = targets.to(device)
         nb, _, depth, height, width = img.shape  # batch size, channels, depth, height, width
         t2 = time_sync()
@@ -276,6 +288,7 @@ def parse_opt():
     parser.add_argument('--name', default='exp', help='save to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--half', action='store_true', help='use FP16 half-precision inference')
+    parser.add_argument('--norm', type=str, default='CT', help='normalization type, options: CT, MR, Other')
     opt = parser.parse_args()
     opt.data = check_yaml(opt.data)  # check YAML
     # opt.save_json = False

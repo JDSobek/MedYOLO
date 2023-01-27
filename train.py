@@ -40,7 +40,7 @@ from utils.plots import plot_evolve
 
 # 3D YOLO imports
 from models3D.model import Model, attempt_load
-from utils3D.datasets import nifti_dataloader, normalize_CT
+from utils3D.datasets import nifti_dataloader, normalize_CT, normalize_MR
 from utils3D.lossandmetrics import ComputeLossVF
 from utils3D.anchors import nifti_check_anchors
 from utils3D.general import check_dataset
@@ -62,9 +62,9 @@ default_batch = 8
 
 def train(hyp, opt, device, callbacks):
     # parsing the arguments
-    save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze = \
+    save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze, norm = \
         Path(opt.save_dir), opt.epochs, opt.batch_size, opt.weights, opt.single_cls, opt.evolve, opt.data, opt.cfg, \
-        opt.resume, opt.noval, opt.nosave, opt.workers, opt.freeze
+        opt.resume, opt.noval, opt.nosave, opt.workers, opt.freeze, opt.norm
     
     # Directories
     w = save_dir / 'weights'  # weights dir
@@ -231,8 +231,14 @@ def train(hyp, opt, device, callbacks):
         # train loop
         for i, (imgs, targets, paths, _) in pbar:  # batch -------------------------------------------------------------
             ni = i + nb * epoch  # number integrated batches (since train start)
-            # Normalization, for non-CT images this function should be replaced
-            imgs = normalize_CT(imgs.to(device, non_blocking=True).float())  # int to float32, -1024-1024 to 0.0-1.0
+            # Normalization, may need replacement depending on your needs
+            if norm.lower() == 'ct':
+                imgs = normalize_CT(imgs.to(device, non_blocking=True).float())  # int to float32, -1024-1024 to 0.0-1.0
+            elif norm.lower() == 'mr':
+                imgs = normalize_MR(imgs.to(device, non_blocking=True).float())  # int to float32, mean 0 std dev
+            else:
+                imgs = imgs.to(device, non_blocking=True).float()
+                raise Exception("You'll need to write your own normalization algorithm.")
 
             # Warmup
             if ni <= nw:
@@ -298,7 +304,8 @@ def train(hyp, opt, device, callbacks):
                                            save_dir=save_dir,
                                            plots=False,
                                            callbacks=callbacks,
-                                           compute_loss=compute_loss)
+                                           compute_loss=compute_loss,
+                                           norm=norm)
                 
             # Update best mAP
             fi = fitness(np.array(results).reshape(1, -1))  # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
@@ -352,7 +359,8 @@ def train(hyp, opt, device, callbacks):
                                             verbose=True,
                                             plots=True,
                                             callbacks=callbacks,
-                                            compute_loss=compute_loss)  # val best model with plots
+                                            compute_loss=compute_loss,
+                                            norm=norm)  # val best model with plots
 
         callbacks.run('on_train_end', last, best, plots, epoch, results)
         # LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}")
@@ -397,6 +405,7 @@ def parse_opt(known=False):
     parser.add_argument('--freeze', type=int, default=0, help='Number of layers to freeze. backbone=10, all=24')
     parser.add_argument('--save-period', type=int, default=-1, help='Save checkpoint every x epochs (disabled if < 1)')
     parser.add_argument('--local_rank', type=int, default=-1, help='DDP parameter, do not modify')
+    parser.add_argument('--norm', type=str, default='CT', help='normalization type, options: CT, MR, Other')
 
     # # Weights & Biases arguments
     # parser.add_argument('--entity', default=None, help='W&B: Entity')

@@ -52,6 +52,7 @@ def run(weights, # model.pt path(s)
         name='exp',  # save results to project/name
         exist_ok=False,  # existing project/name ok, do not increment
         half=False,  # use FP16 half-precision inference
+        norm='CT' # normalization mode
         ):
     source = str(source)
     save_img = not nosave and not source.endswith('.txt')
@@ -90,12 +91,23 @@ def run(weights, # model.pt path(s)
     
     for path, img, im0s in dataset:
         img = img.half() if half else img.float()  # uint8 to fp16/32
-        # Normalization for Hounsfield units, may see performance improvements by clipping images to +/- 1024.
-        # This should be changed for scans that are not CT
-        img = (img.to(device, non_blocking=True).float() + 1024.) / 2048.0  # int to float32, -1024-1024 to 0.0-1.0
-        if len(img.shape) == 4: # if only has channel, z, x, y
-            img = img[None]  # expand for batch dim
 
+        if len(img.shape) == 4: # if only has channel, z, x, y dimensions but no batch
+            img = img[None]  # expand for batch dim
+        
+        if norm.lower() == 'ct':
+            # Normalization for Hounsfield units, may see performance improvements by clipping images to +/- 1024.
+            # This should be changed for scans that are not CT
+            img = (img.to(device, non_blocking=True).float() + 1024.) / 2048.0  # int to float32, -1024-1024 to 0.0-1.0
+        elif norm.lower() == 'mr':
+            img = img.to(device, non_blocking=True).float()
+            mean = torch.mean(img, dim=[1,2,3,4], keepdim=True)
+            std_dev = torch.std(img, dim=[1,2,3,4], keepdim=True)
+            img = (img - mean)/std_dev
+        else:
+            img = img.to(device, non_blocking=True).float()
+            raise Exception("You'll need to write your own normalization algorithm.")
+        
         # Inference
         pred = model(img, augment=augment, visualize=visualize)[0]
 
@@ -165,6 +177,7 @@ def parse_opt():
     parser.add_argument('--name', default='exp', help='save results to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--half', action='store_true', help='use FP16 half-precision inference')
+    parser.add_argument('--norm', type=str, default='CT', help='normalization type, options: CT, MR, Other')
     opt = parser.parse_args()
     print_args(FILE.stem, opt)
     return opt

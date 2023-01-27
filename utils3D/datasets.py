@@ -543,7 +543,7 @@ def load_nifti(self, i):
 
 
 def normalize_CT(imgs):
-    """Normalizes standard CTs in Hounsfield Units (+/- 1024) to within 0 and 1.
+    """Normalizes 3D CTs in Hounsfield Units (+/- 1024) to within 0 and 1.
 
     Args:
         imgs (torch.tensor): unnormalized model input
@@ -552,4 +552,19 @@ def normalize_CT(imgs):
         imgs (torch.tensor): normalized model input
     """
     imgs = (imgs + 1024.) / 2048.0  # int to float32, -1024-1024 to 0.0-1.0
+    return imgs
+
+
+def normalize_MR(imgs):
+    """Volume normalizes 3D MR images to mean 0 and standard deviation 1.
+
+    Args:
+        imgs (torch.tensor): unnormalized model input
+
+    Returns:
+        imgs (torch.tensor): normalized model input
+    """
+    means = torch.mean(imgs, dim=[1,2,3,4], keepdim=True)
+    std_devs = torch.std(imgs, dim=[1,2,3,4], keepdim=True)
+    imgs = (imgs - means)/std_devs
     return imgs

@@ -29,14 +29,18 @@ def torch_to_nifti(data_tensor: torch.Tensor, nifti_path: str, affine, size):
     return nifti
     
 
-def mask_maker(label, nifti, mask_path: str):
+def mask_maker(label_path: str, nifti_path: str, mask_path: str):
     """Makes nifti masks out of YOLO labels.
     Only works with 1 label per mask, will need changes for multiple label masks
     Args:
         label (torch.Tensor or np.ndarray): YOLO label
         mask_dir (str): folder to save created nifti mask to
     """
+    f = open(label_path, 'r')
+    label = list(filter(None, f.read().split('\n'))) # filtering out blank lines
     
+    # load nifti and create empty mask
+    nifti = nib.load(nifti_path)
     nifti_array = np.array(nifti.dataobj)
     mask_array = np.zeros_like(nifti_array)
     
@@ -46,7 +50,7 @@ def mask_maker(label, nifti, mask_path: str):
     depth = mask_array.shape[2]
     
     for target in label:
-        cls, z, x, y, d, w, h = target
+        cls, z, x, y, d, w, h = target.split(' ')
         cls = int(cls)
         z = float(z)
         x = float(x)
