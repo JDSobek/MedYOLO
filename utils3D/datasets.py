@@ -23,7 +23,7 @@ from utils.datasets import InfiniteDataLoader, get_hash
 
 # 3D YOLO imports
 from utils3D.general import zxyzxy2zxydwhn, zxydwhn2zxyzxy
-from utils3D.augmentations import nifti_cutout, random_zoom
+from utils3D.augmentations import tensor_cutout, random_zoom
 
 
 # Configuration
@@ -125,7 +125,8 @@ class LoadNiftis(Dataset):
 
         # Read current image
         self.count += 1
-        img0, affine = open_nifti(path)
+        # img0, affine = open_nifti(path)
+        img0, _ = open_nifti(path)
         assert img0 is not None, 'Image Not Found ' + path
         print(f'\nimage {self.count}/{self.nf} {path}: ', end='')
 
@@ -202,7 +203,7 @@ class LoadNiftisAndLabels(Dataset):
         self.label_files = img2label_paths(cache.keys())  # update
         n = len(shapes)  # number of images
         bi = np.floor(np.arange(n) / batch_size).astype(int)  # batch index
-        nb = bi[-1] + 1  # number of batches
+        # nb = bi[-1] + 1  # number of batches
         self.batch = bi  # batch index of image
         self.n = n
         self.indices = range(n)
@@ -285,7 +286,8 @@ class LoadNiftisAndLabels(Dataset):
         hyp = self.hyp # used to configure augmentation
         
         # Load image
-        img, (d0, h0, w0), (d, h, w), affine = load_nifti(self, index)
+        # img, (d0, h0, w0), (d, h, w), affine = load_nifti(self, index)
+        img, (d0, h0, w0), (d, h, w), _ = load_nifti(self, index)
 
         # Letterbox
         # shape = (self.img_size, self.img_size, self.img_size) # not adding rectangular training yet
@@ -303,7 +305,7 @@ class LoadNiftisAndLabels(Dataset):
                 labels[:, 1:] = zxydwhn2zxyzxy(labels[:, 1:], d, w, h, pad[0], pad[1], pad[2])                    
 
             # random zoom
-            img, labels = random_zoom(img, labels)
+            img, labels = random_zoom(img, labels, hyp['max_zoom'], hyp['min_zoom'], hyp['prob_zoom'])
         
             # transformation of labels back to standard format
             if nl:
@@ -318,7 +320,7 @@ class LoadNiftisAndLabels(Dataset):
             # Flip left-right
             
             # Cutouts
-            labels = nifti_cutout(img, labels)            
+            labels = tensor_cutout(img, labels, hyp['prob_cutout'])            
             # update after cutout
             nl = len(labels)  # number of labels
         

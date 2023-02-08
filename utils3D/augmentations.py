@@ -13,8 +13,17 @@ import torch
 from utils3D.lossandmetrics import bbox_iov
 
 
-def nifti_cutout(im, labels, p=0.5):
-    # Applies image cutout augmentation https://arxiv.org/abs/1708.04552
+def tensor_cutout(im: torch.Tensor, labels, p=0.5):
+    """Applies image cutout augmentation https://arxiv.org/abs/1708.04552
+
+    Args:
+        im (torch.Tensor): 3-D tensor to be augmented.
+        labels (List[float]): Med YOLO labels corresponding to im. class z1 x1 y1 z2 x2 y2
+        p (float, optional): probability of performing cutout augmentation. Defaults to 0.5.
+
+    Returns:
+        _type_: _description_
+    """
     if random.random() < p:
         d, h, w = im.shape[1:]
         
@@ -34,7 +43,8 @@ def nifti_cutout(im, labels, p=0.5):
             
             # apply random greyscale mask
             # images scaled between 0 and 1 after being returned by the dataset
-            im[:,zmin:zmax, ymin:ymax, xmin:xmax] = random.randint(-1024, 1024)
+            # im[:,zmin:zmax, ymin:ymax, xmin:xmax] = random.randint(-1024, 1024)
+            im[:,zmin:zmax, ymin:ymax, xmin:xmax] = random.uniform(torch.min(im), torch.max(im))
             
             # remove obscured labels
             if len(labels) and s > 0.03:
@@ -53,6 +63,7 @@ def random_zoom(im: torch.Tensor, labels, max_zoom=1.5, min_zoom=0.7, p=0.5):
         labels (List[float]): Med YOLO labels corresponding to im. class z1 x1 y1 z2 x2 y2
         max_zoom (float, optional): maximum edge length multiplier. Defaults to 1.5.
         min_zoom (_type_, optional): minimum edge length multiplier. Defaults to 0.7.
+        p (float, optional): probability of zooming the input. Defaults to 0.5.
 
     Returns:
         im: Augmented tensor.
@@ -139,7 +150,8 @@ def random_zoom(im: torch.Tensor, labels, max_zoom=1.5, min_zoom=0.7, p=0.5):
             ymax = ymin + new_h
             
             # create a new tensor 
-            new_im = torch.rand(1, d, w, h)*2048. - 1024.
+            # new_im = torch.rand(1, d, w, h)*2048. - 1024.
+            new_im = torch.rand(1, d, w, h)*(torch.max(im) - torch.min(im)) + torch.min(im)
             new_im[:,zmin:zmax, xmin:xmax, ymin:ymax] = im
             im = new_im
             

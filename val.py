@@ -86,7 +86,7 @@ def run(data,
         task='val',  # train, val, test, speed or study
         device='',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
         single_cls=False,  # treat as single-class dataset
-        augment=False,  # augmented inference
+        # augment=False,  # augmented inference
         verbose=False,  # verbose output
         save_txt=False,  # save results to *.txt
         save_hybrid=False,  # save label+prediction hybrid results to *.txt
@@ -146,13 +146,15 @@ def run(data,
     seen = 0
     confusion_matrix = ConfusionMatrix(nc=nc)
     names = {k: v for k, v in enumerate(model.names if hasattr(model, 'names') else model.module.names)}
-    class_map = list(range(1000))
+    # class_map = list(range(1000))
     s = ('%20s' + '%11s' * 6) % ('Class', 'Images', 'Labels', 'P', 'R', 'mAP@.5', 'mAP@.5:.95')
     dt, p, r, f1, mp, mr, map50, map = [0.0, 0.0, 0.0], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
     loss = torch.zeros(3, device=device)
-    jdict, stats, ap, ap_class = [], [], [], []
+    # jdict, stats, ap, ap_class = [], [], [], []
+    stats, ap, ap_class = [], [], []
     
-    for batch_i, (img, targets, paths, shapes) in enumerate(tqdm(dataloader, desc=s)):
+    # for batch_i, (img, targets, paths, shapes) in enumerate(tqdm(dataloader, desc=s)):
+    for _, (img, targets, paths, shapes) in enumerate(tqdm(dataloader, desc=s)):
         t1 = time_sync()
         img = img.to(device, non_blocking=True)
         img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -174,7 +176,7 @@ def run(data,
         dt[0] += t2 - t1
 
         # Run model
-        out, train_out = model(img, augment=augment)  # inference and training outputs
+        out, train_out = model(img) #, augment=augment)  # inference and training outputs
         dt[1] += time_sync() - t2
 
         # Compute loss
@@ -277,7 +279,7 @@ def parse_opt():
     parser.add_argument('--task', default='val', help='train, val, test, speed or study')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--single-cls', action='store_true', help='treat as single-class dataset')
-    parser.add_argument('--augment', action='store_true', help='augmented inference')
+    # parser.add_argument('--augment', action='store_true', help='augmented inference')
     parser.add_argument('--verbose', action='store_true', help='report mAP by class')
     parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
     parser.add_argument('--save-hybrid', action='store_true', help='save label+prediction hybrid results to *.txt')
@@ -290,7 +292,8 @@ def parse_opt():
     opt = parser.parse_args()
     opt.data = check_yaml(opt.data)  # check YAML
     # opt.save_json = False
-    opt.save_txt = True
+    # opt.save_txt = True
+    opt.save_txt |= opt.save_hybrid
     print_args(FILE.stem, opt)
     return opt
     
@@ -304,7 +307,7 @@ def main(opt):
     elif opt.task == 'speed':  # speed benchmarks
         for w in opt.weights if isinstance(opt.weights, list) else [opt.weights]:
             run(opt.data, weights=w, batch_size=opt.batch_size, imgsz=opt.imgsz, conf_thres=.25, iou_thres=.45,
-                device=opt.device, save_json=False, plots=False)
+                device=opt.device, plots=False) #, save_json=False)
 
     elif opt.task == 'study':  # run over a range of settings and save/plot
         x = list(range(256, 1536 + 128, 128))  # x axis (image sizes)
@@ -314,7 +317,7 @@ def main(opt):
             for i in x:  # img-size
                 print(f'\nRunning {f} point {i}...')
                 r, _, t = run(opt.data, weights=w, batch_size=opt.batch_size, imgsz=i, conf_thres=opt.conf_thres,
-                              iou_thres=opt.iou_thres, device=opt.device, save_json=opt.save_json, plots=False)
+                              iou_thres=opt.iou_thres, device=opt.device, plots=False) #, save_json=opt.save_json)
                 y.append(r + t)  # results and times
             np.savetxt(f, y, fmt='%10.4g')  # save
         os.system('zip -r study.zip study_*.txt')

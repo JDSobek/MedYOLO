@@ -43,11 +43,11 @@ def run(weights, # model.pt path(s)
         device='',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
         save_txt=True,  # save results to *.txt
         save_conf=False,  # save confidences in --save-txt labels
-        nosave=False,  # do not save images/videos
+        # nosave=False,  # do not save images/videos
         classes=None,  # filter by class: --class 0, or --class 0 2 3
         agnostic_nms=False,  # class-agnostic NMS
-        augment=False,  # augmented inference - not implemented in model yet
-        visualize=False,  # visualize features - not implemented in model yet
+        # augment=False,  # augmented inference - not implemented in model yet
+        # visualize=False,  # visualize features - not implemented in model yet
         project=ROOT / 'runs/detect',  # save results to project/name
         name='exp',  # save results to project/name
         exist_ok=False,  # existing project/name ok, do not increment
@@ -55,7 +55,7 @@ def run(weights, # model.pt path(s)
         norm='CT' # normalization mode
         ):
     source = str(source)
-    save_img = not nosave and not source.endswith('.txt')
+    # save_img = not nosave and not source.endswith('.txt')
     
     # for some reason the argument is not working and this is needed to save out the labels
     save_txt = True
@@ -87,7 +87,8 @@ def run(weights, # model.pt path(s)
     # Run inference
     if device.type != 'cpu':
         model(torch.zeros(1, 1, imgsz, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
-    dt, seen = [0.0, 0.0, 0.0], 0
+    # dt, seen = [0.0, 0.0, 0.0], 0
+    seen = 0
     
     for path, img, im0s in dataset:
         img = img.to(device, non_blocking=True)
@@ -108,15 +109,17 @@ def run(weights, # model.pt path(s)
             raise Exception("You'll need to write your own normalization algorithm.")
         
         # Inference
-        pred = model(img, augment=augment, visualize=visualize)[0]
+        pred = model(img)[0] #, augment=augment, visualize=visualize)[0]
 
         # NMS
         pred = non_max_suppression(pred, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)
         
         # Process predictions
-        for i, det in enumerate(pred):  # per image
+        # for i, det in enumerate(pred):  # per image
+        for _, det in enumerate(pred):  # per image
             seen += 1
-            p, s, im0, frame = path, '', im0s.clone(), getattr(dataset, 'frame', 0)
+            # p, s, im0, frame = path, '', im0s.clone(), getattr(dataset, 'frame', 0)
+            p, s, im0, _ = path, '', im0s.clone(), getattr(dataset, 'frame', 0)
 
             p = Path(p)  # to Path
             if p.name[-4:] == '.nii':
@@ -151,7 +154,7 @@ def run(weights, # model.pt path(s)
                         with open(txt_path + '.txt', 'a') as f:
                             f.write(('%g ' * len(line)).rstrip() % line + '\n')
                             
-    if save_txt or save_img:
+    if save_txt: # or save_img:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         print(f"Results saved to {colorstr('bold', save_dir)}{s}")
 
@@ -159,7 +162,7 @@ def run(weights, # model.pt path(s)
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', nargs='+', type=str, default='', help='model path(s)')
-    parser.add_argument('--source', type=str, default='', help='file/dir/URL/glob')
+    parser.add_argument('--source', type=str, default='', help='file/dir')
     parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[default_size], help='inference size characteristic length')
     parser.add_argument('--conf-thres', type=float, default=0.1, help='confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='NMS IoU threshold')
@@ -167,11 +170,11 @@ def parse_opt():
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
     parser.add_argument('--save-conf', action='store_true', help='save confidences in --save-txt labels')
-    parser.add_argument('--nosave', action='store_true', help='do not save images/videos')
+    # parser.add_argument('--nosave', action='store_true', help='do not save images/videos')
     parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --classes 0, or --classes 0 2 3')
     parser.add_argument('--agnostic-nms', action='store_true', help='class-agnostic NMS')
-    parser.add_argument('--augment', action='store_true', help='augmented inference')
-    parser.add_argument('--visualize', action='store_true', help='visualize features')
+    # parser.add_argument('--augment', action='store_true', help='augmented inference')
+    # parser.add_argument('--visualize', action='store_true', help='visualize features')
     parser.add_argument('--project', default=ROOT / 'runs/detect', help='save results to project/name')
     parser.add_argument('--name', default='exp', help='save results to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')

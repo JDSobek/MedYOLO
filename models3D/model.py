@@ -112,7 +112,7 @@ def fuse_conv_and_bn(conv, bn):
     return fusedconv
 
 
-def model_info(model, verbose=False, img_size=default_size):
+def model_info(model, verbose=False): #, img_size=default_size):
     """Model information.
 
     Args:
@@ -361,7 +361,8 @@ def parse_model(d, ch):
             except NameError:
                 pass
 
-        n = n_ = max(round(n * gd), 1) if n > 1 else n  # depth gain
+        # n = n_ = max(round(n * gd), 1) if n > 1 else n  # depth gain
+        n = max(round(n * gd), 1) if n > 1 else n  # depth gain
         if m in [Conv, Bottleneck, C3, SPPF]:
             c1, c2 = ch[f], args[0]
             if c2 != no:  # if not output
@@ -447,35 +448,36 @@ class Model(nn.Module):
         # self.info()  # prints model information
         # LOGGER.info('')
 
-    def forward(self, x, augment=False, profile=False, visualize=False):
+    def forward(self, x): #, augment=False, profile=False): #, visualize=False):
         # augmentation functionality missing, do not use
-        if augment:
-            return self._forward_augment(x)  # augmented inference, None
-        return self._forward_once(x, profile, visualize)  # single-scale inference, train
+        # if augment:
+        #     return self._forward_augment(x)  # augmented inference, None
+        return self._forward_once(x) # , profile) #, visualize)  # single-scale inference, train
 
-    def _forward_augment(self, x):
-        # won't work, _descale_pred and _clip_augmented arent implemented yet
-        img_size = x.shape[-2:]  # height, width
-        s = [1, 0.83, 0.67]  # scales
-        f = [None, 3, None]  # flips (2-ud, 3-lr)
-        y = []  # outputs
-        for si, fi in zip(s, f):
-            xi = scale_img(x.flip(fi) if fi else x, si, gs=int(self.stride.max()))
-            yi = self._forward_once(xi)[0]  # forward
-            yi = self._descale_pred(yi, fi, si, img_size)
-            y.append(yi)
-        y = self._clip_augmented(y)  # clip augmented tails
-        return torch.cat(y, 1), None  # augmented inference, train
+    # def _forward_augment(self, x):
+    #     # won't work, _descale_pred and _clip_augmented arent implemented yet
+    #     img_size = x.shape[-2:]  # height, width
+    #     s = [1, 0.83, 0.67]  # scales
+    #     f = [None, 3, None]  # flips (2-ud, 3-lr)
+    #     y = []  # outputs
+    #     for si, fi in zip(s, f):
+    #         xi = scale_img(x.flip(fi) if fi else x, si, gs=int(self.stride.max()))
+    #         yi = self._forward_once(xi)[0]  # forward
+    #         yi = self._descale_pred(yi, fi, si, img_size)
+    #         y.append(yi)
+    #     y = self._clip_augmented(y)  # clip augmented tails
+    #     return torch.cat(y, 1), None  # augmented inference, train
 
-    def _forward_once(self, x, profile=False, visualize=False):
+    def _forward_once(self, x): # , profile=False): #, visualize=False):
         # _profile_one_layer isn't implemented yet, so keep profile=False
         # visualize is also currently not implemented
-        y, dt = [], []  # outputs
+        # y, dt = [], []  # outputs
+        y = []  # outputs
         for m in self.model:
             if m.f != -1:  # if not from previous layer
                 x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
-            if profile:
-                self._profile_one_layer(m, x, dt) # haven't implemented this yet
+            # if profile:
+            #     self._profile_one_layer(m, x, dt) # haven't implemented this yet
             x = m(x)  # run
             y.append(x if m.i in self.save else None)  # save output
         return x
@@ -501,5 +503,5 @@ class Model(nn.Module):
         self.info()
         return self
 
-    def info(self, verbose=False, img_size=default_size):  # print model information
-        model_info(self, verbose, img_size)
+    def info(self, verbose=False): # , img_size=default_size):  # print model information
+        model_info(self, verbose)

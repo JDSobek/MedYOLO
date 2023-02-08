@@ -24,16 +24,20 @@ iou_t: 0.2
 anchor_t: 2.91
 # anchors: 3.63
 fl_gamma: 0.0
-hsv_h: 0.0138
-hsv_s: 0.664
-hsv_v: 0.464
-degrees: 0.373
-translate: 0.245
-scale: 0.898
-shear: 0.602
-perspective: 0.0
-flipud: 0.00856
-fliplr: 0.5
-mosaic: 1.0
-mixup: 0.243
-copy_paste: 0.0
+max_zoom: 1.5 # maximum zoom factor
+min_zoom: 0.7 # minimum zoom factor
+prob_zoom: 0.5 # probability of zoom augmentation
+prob_cutout: 0.5 # probability of cutout augmentation
+# hsv_h: 0.0138
+# hsv_s: 0.664
+# hsv_v: 0.464
+# degrees: 0.373
+# translate: 0.245
+# scale: 0.898
+# shear: 0.602
+# perspective: 0.0
+# flipud: 0.00856
+# fliplr: 0.5
+# mosaic: 1.0
+# mixup: 0.243
+# copy_paste: 0.0

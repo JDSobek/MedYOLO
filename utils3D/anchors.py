@@ -132,7 +132,8 @@ def nifti_kmean_anchors(dataset='./data/example.yaml', n=9, img_size=default_siz
     # Kmeans calculation
     print(f'{prefix}Running kmeans for {n} anchors on {len(dwh)} points...')
     s = dwh.std(0)  # sigmas for whitening
-    k, dist = kmeans(dwh / s, n, iter=30)  # points, mean distance
+    # k, dist = kmeans(dwh / s, n, iter=30)  # points, mean distance
+    k, _ = kmeans(dwh / s, n, iter=30)  # points, mean distance
     assert len(k) == n, f'{prefix}ERROR: scipy.cluster.vq.kmeans requested {n} points but returned only {len(k)}'
     k *= s
     dwh = torch.tensor(dwh, dtype=torch.float32)  # filtered

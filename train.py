@@ -237,7 +237,6 @@ def train(hyp, opt, device, callbacks):
             elif norm.lower() == 'mr':
                 imgs = normalize_MR(imgs.to(device, non_blocking=True).float())  # int to float32, mean 0 std dev
             else:
-                imgs = imgs.to(device, non_blocking=True).float()
                 raise Exception("You'll need to write your own normalization algorithm.")
 
             # Warmup
@@ -373,12 +372,12 @@ def parse_opt(known=False):
     # parses the options in the arguments
     # many of these options aren't implemented yet, and are left for now for reference, these should all be commented out
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', type=str, default='', help='initial weights path')  # weights start randomly initialized
-    parser.add_argument('--cfg', type=str, default=ROOT / 'models3D/yolo3Ds.yaml', help='model.yaml path') # Testing new architecture for YOLO3D
-    parser.add_argument('--data', type=str, default=ROOT / 'data/example.yaml', help='dataset.yaml path')  # data folder included to store dataset yamls, but a default is not included to protect PHI
+    parser.add_argument('--weights', type=str, default='', help='initial weights path')
+    parser.add_argument('--cfg', type=str, default=ROOT / 'models3D/yolo3Ds.yaml', help='model.yaml path')
+    parser.add_argument('--data', type=str, default=ROOT / 'data/example.yaml', help='dataset.yaml path')
     parser.add_argument('--hyp', type=str, default=ROOT / 'data/hyps/hyp.scratch.yaml', help='hyperparameters path')
     parser.add_argument('--epochs', type=int, default=default_epochs)
-    parser.add_argument('--batch-size', type=int, default=default_batch, help='total batch size for all GPUs, -1 for autobatch')  # autobatch may not be implemented
+    parser.add_argument('--batch-size', type=int, default=default_batch, help='total batch size for all GPUs')
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=default_size, help='train, val image size (pixels)')
     # parser.add_argument('--rect', action='store_true', help='rectangular training')
     parser.add_argument('--resume', nargs='?', const=True, default=False, help='resume most recent training')
@@ -475,21 +474,26 @@ def main(opt, callbacks=Callbacks()):
                 'obj_pw': (1, 0.5, 2.0),  # obj BCELoss positive_weight
                 'iou_t': (0, 0.1, 0.7),  # IoU training threshold
                 'anchor_t': (1, 2.0, 8.0),  # anchor-multiple threshold
-                'anchors': (2, 2.0, 10.0),  # anchors per output grid (0 to ignore)
+                # 'anchors': (2, 2.0, 10.0),  # anchors per output grid (0 to ignore)
                 'fl_gamma': (0, 0.0, 2.0),  # focal loss gamma (efficientDet default gamma=1.5)
-                'hsv_h': (1, 0.0, 0.1),  # image HSV-Hue augmentation (fraction)
-                'hsv_s': (1, 0.0, 0.9),  # image HSV-Saturation augmentation (fraction)
-                'hsv_v': (1, 0.0, 0.9),  # image HSV-Value augmentation (fraction)
-                'degrees': (1, 0.0, 45.0),  # image rotation (+/- deg)
-                'translate': (1, 0.0, 0.9),  # image translation (+/- fraction)
-                'scale': (1, 0.0, 0.9),  # image scale (+/- gain)
-                'shear': (1, 0.0, 10.0),  # image shear (+/- deg)
-                'perspective': (0, 0.0, 0.001),  # image perspective (+/- fraction), range 0-0.001
-                'flipud': (1, 0.0, 1.0),  # image flip up-down (probability)
-                'fliplr': (0, 0.0, 1.0),  # image flip left-right (probability)
-                'mosaic': (1, 0.0, 1.0),  # image mixup (probability)
-                'mixup': (1, 0.0, 1.0),  # image mixup (probability)
-                'copy_paste': (1, 0.0, 1.0)}  # segment copy-paste (probability)
+                'max_zoom': (0, 1.0, 2.0), # maximum zoom factor
+                'min_zoom': (0, 0.4, 1.0), # minimum zoom factor
+                'prob_zoom': (0, 0.3, 0.7), # probability of zoom augmentation
+                'prob_cutout': (0, 0.3, 0.7), # probability of cutout augmentation
+                # 'hsv_h': (1, 0.0, 0.1),  # image HSV-Hue augmentation (fraction)
+                # 'hsv_s': (1, 0.0, 0.9),  # image HSV-Saturation augmentation (fraction)
+                # 'hsv_v': (1, 0.0, 0.9),  # image HSV-Value augmentation (fraction)
+                # 'degrees': (1, 0.0, 45.0),  # image rotation (+/- deg)
+                # 'translate': (1, 0.0, 0.9),  # image translation (+/- fraction)
+                # 'scale': (1, 0.0, 0.9),  # image scale (+/- gain)
+                # 'shear': (1, 0.0, 10.0),  # image shear (+/- deg)
+                # 'perspective': (0, 0.0, 0.001),  # image perspective (+/- fraction), range 0-0.001
+                # 'flipud': (1, 0.0, 1.0),  # image flip up-down (probability)
+                # 'fliplr': (0, 0.0, 1.0),  # image flip left-right (probability)
+                # 'mosaic': (1, 0.0, 1.0),  # image mixup (probability)
+                # 'mixup': (1, 0.0, 1.0),  # image mixup (probability)
+                # 'copy_paste': (1, 0.0, 1.0)  # segment copy-paste (probability)
+        }
         
         with open(opt.hyp, errors='ignore') as f:
             hyp = yaml.safe_load(f)  # load hyps dict
