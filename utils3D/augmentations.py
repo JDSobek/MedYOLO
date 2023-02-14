@@ -5,6 +5,7 @@ import numpy as np
 import torch
 # import math
 # import torchvision
+from typing import List
 
 # 2D YOLO imports
 # from utils.general import colorstr, segment2box, resample_segments, check_version
@@ -13,12 +14,15 @@ import torch
 from utils3D.lossandmetrics import bbox_iov
 
 
-def tensor_cutout(im: torch.Tensor, labels, p=0.5):
+def tensor_cutout(im: torch.Tensor, labels, cutout_params: List[List[float]], p=0.5):
     """Applies image cutout augmentation https://arxiv.org/abs/1708.04552
 
     Args:
         im (torch.Tensor): 3-D tensor to be augmented.
         labels (List[float]): Med YOLO labels corresponding to im. class z1 x1 y1 z2 x2 y2
+        cutout_params (List[List[float]]): a list of ordered pairs that set sizes and numbers of cutout boxes.
+                                           the maximum extent of the boxes is set by the first element of the ordered pair
+                                           the number of boxes with that maximum extent is set by the second element of the ordered pair
         p (float, optional): probability of performing cutout augmentation. Defaults to 0.5.
 
     Returns:
@@ -26,8 +30,10 @@ def tensor_cutout(im: torch.Tensor, labels, p=0.5):
     """
     if random.random() < p:
         d, h, w = im.shape[1:]
-        
-        scales = [0.5] * 1 + [0.25] * 2 + [0.125] * 4 + [0.0625] * 8 + [0.03125] * 16  # image size fraction
+        scales = []
+        for param_pair in cutout_params:
+            scales = scales + [param_pair[0]]*param_pair[1]
+       
         for s in scales:
             mask_d = random.randint(1, int(d * s))  # create random masks
             mask_h = random.randint(1, int(h * s))

@@ -320,7 +320,7 @@ class LoadNiftisAndLabels(Dataset):
             # Flip left-right
             
             # Cutouts
-            labels = tensor_cutout(img, labels, hyp['prob_cutout'])            
+            labels = tensor_cutout(img, labels, hyp['cutout_params'], hyp['prob_cutout'])            
             # update after cutout
             nl = len(labels)  # number of labels
         

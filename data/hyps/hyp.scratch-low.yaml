@@ -23,6 +23,7 @@ max_zoom: 1.5 # maximum zoom factor
 min_zoom: 0.7 # minimum zoom factor
 prob_zoom: 0.5 # probability of zoom augmentation
 prob_cutout: 0.5 # probability of cutout augmentation
+cutout_params: [[0.5, 1], [0.25, 2], [0.125, 4], [0.0625, 8], [0.03125, 16]]
 # hsv_h: 0.015  # image HSV-Hue augmentation (fraction)
 # hsv_s: 0.7  # image HSV-Saturation augmentation (fraction)
 # hsv_v: 0.4  # image HSV-Value augmentation (fraction)

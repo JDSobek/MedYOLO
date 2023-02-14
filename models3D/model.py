@@ -230,7 +230,6 @@ class SPPF(nn.Module):
 
 class Detect(nn.Module):
     stride = None  # strides computed during build
-    onnx_dynamic = False  # ONNX export parameter
 
     def __init__(self, nc=80, anchors=(), ch=(), inplace=True):  # detection layer
         """YOLO Detection layer, adjusted for 3D
@@ -244,7 +243,7 @@ class Detect(nn.Module):
         super().__init__()
         self.nc = nc  # number of classes
         self.no = nc + 7  # number of outputs per anchor, (zxydwh) + nc + 1
-        self.nl = len(anchors)  # number of detection layers, by default 3
+        self.nl = len(anchors)  # number of detection layers, by default 4
         self.na = len(anchors[0]) // 3 # number of anchors per detection layer
         self.grid = [torch.zeros(1)] * self.nl  # initialize grid
         self.anchor_grid = [torch.zeros(1)] * self.nl  # initialize anchor grid
@@ -258,7 +257,7 @@ class Detect(nn.Module):
     def forward(self, x):
         z = [] # inference output
         for i in range(self.nl):           
-            # The module list receives inputs from 3 different layers of the network, one for each detection layer
+            # The module list receives inputs from 4 different layers of the network, one for each detection layer
             # and has separate Conv layers to handle each of those inputs
             x[i] = self.m[i](x[i])  # conv
 
@@ -270,7 +269,7 @@ class Detect(nn.Module):
             # self.training is an internal attribute set to True by model.train(), this is only run in eval mode
             # during training anchors are set by hyperparameters and nifti_check_anchors
             if not self.training: # inference
-                if self.grid[i].shape[2:5] != x[i].shape[2:5] or self.onnx_dynamic:
+                if self.grid[i].shape[2:5] != x[i].shape[2:5]:
                     self.grid[i], self.anchor_grid[i] = self._make_grid(nz, nx, ny, i)
 
                 y = x[i].sigmoid()
