@@ -9,17 +9,15 @@ import sys
 import torch
 from pathlib import Path
 import os
-# import logging
 import warnings
 import torch.nn as nn
 import torch.nn.functional as F
 from copy import deepcopy
 import math
 
-# Configuration
+# set path for local imports
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLO3D root directory
-
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
@@ -29,9 +27,9 @@ from models.common import autopad, Concat
 from utils.general import make_divisible
 
 # 3D YOLO imports
-# from utils3D.anchors import check_anchor_order
 
-# LOGGER = logging.getLogger(__name__)
+
+# Configuration
 default_size = 350 # edge length for testing
 
 
@@ -112,7 +110,7 @@ def fuse_conv_and_bn(conv, bn):
     return fusedconv
 
 
-def model_info(model, verbose=False): #, img_size=default_size):
+def model_info(model, verbose=False):
     """Model information.
 
     Args:
@@ -120,16 +118,12 @@ def model_info(model, verbose=False): #, img_size=default_size):
         verbose (bool, optional): Whether or not to print named parameters. Defaults to False.
         img_size (int, optional): Image size for the loaded model. Defaults to default_size.
     """
-    # n_p = sum(x.numel() for x in model.parameters())  # number parameters
-    # n_g = sum(x.numel() for x in model.parameters() if x.requires_grad)  # number gradients
     if verbose:
         print(f"{'layer':>5} {'name':>40} {'gradient':>9} {'parameters':>12} {'shape':>20} {'mu':>10} {'sigma':>10}")
         for i, (name, p) in enumerate(model.named_parameters()):
             name = name.replace('module_list.', '')
             print('%5g %40s %9s %12g %20s %10.3g %10.3g' %
                   (i, name, p.requires_grad, p.numel(), list(p.shape), p.mean(), p.std()))
-
-    # LOGGER.info(f"Model Summary: {len(list(model.modules()))} layers, {n_p} parameters, {n_g} gradients")
 
 
 # YOLO layers
@@ -345,7 +339,6 @@ def parse_model(d, ch):
         (torch.Module): Configured model.
         (List[int]): List of layers from which to save output.
     """
-    # LOGGER.info(f"\n{'':>3}{'from':>18}{'n':>3}{'params':>10}  {'module':<40}{'arguments':<30}")
     anchors, nc, gd, gw = d['anchors'], d['nc'], d['depth_multiple'], d['width_multiple']
     na = (len(anchors[0]) // 3) if isinstance(anchors, list) else anchors  # number of anchors
     no = na * (nc + 7)  # number of outputs = anchors * (classes + 7 [zxydwh + conf (I think)])
@@ -387,7 +380,6 @@ def parse_model(d, ch):
         t = str(m)[8:-2].replace('__main__.', '')  # module type
         np = sum(x.numel() for x in m_.parameters())  # number params
         m_.i, m_.f, m_.type, m_.np = i, f, t, np  # attach index, 'from' index, type, number of parameters
-        # LOGGER.info(f'{i:>3}{str(f):>18}{n_:>3}{np:10.0f}  {t:<40}{str(args):<30}')  # print
         save.extend(x % i for x in ([f] if isinstance(f, int) else f) if x != -1)  # append to savelist
         layers.append(m_)
         if i == 0:
@@ -419,10 +411,8 @@ class Model(nn.Module):
         # Define model
         ch = self.yaml['ch'] = self.yaml.get('ch', ch)  # input channels
         if nc and nc != self.yaml['nc']:
-            # LOGGER.info(f"Overriding model.yaml nc={self.yaml['nc']} with nc={nc}")
             self.yaml['nc'] = nc  # override yaml value
         if anchors:
-            # LOGGER.info(f'Overriding model.yaml anchors with anchors={anchors}')
             self.yaml['anchors'] = round(anchors)  # override yaml value
         # parse_model configures the layers and passes in the anchors hyperparameter to the Detect layer
         self.model, self.save = parse_model(deepcopy(self.yaml), ch=[ch])  # model, savelist
@@ -438,45 +428,21 @@ class Model(nn.Module):
             m.stride = torch.tensor([s / x.shape[-2] for x in self.forward(torch.zeros(1, ch, s, s, s))])  # forward           
             self.stride = m.stride
             m.anchors /= m.stride.view(-1, 1, 1)
-            # check_anchor_order(m)  # behavior is hard to control and makes setting custom anchors unintuitive
 
             self._initialize_biases()  # only run once
 
         # Initialize weights and biases
         initialize_weights(self)
-        # self.info()  # prints model information
-        # LOGGER.info('')
 
-    def forward(self, x): #, augment=False, profile=False): #, visualize=False):
-        # augmentation functionality missing, do not use
-        # if augment:
-        #     return self._forward_augment(x)  # augmented inference, None
-        return self._forward_once(x) # , profile) #, visualize)  # single-scale inference, train
+    def forward(self, x):
+        return self._forward_once(x)
 
-    # def _forward_augment(self, x):
-    #     # won't work, _descale_pred and _clip_augmented arent implemented yet
-    #     img_size = x.shape[-2:]  # height, width
-    #     s = [1, 0.83, 0.67]  # scales
-    #     f = [None, 3, None]  # flips (2-ud, 3-lr)
-    #     y = []  # outputs
-    #     for si, fi in zip(s, f):
-    #         xi = scale_img(x.flip(fi) if fi else x, si, gs=int(self.stride.max()))
-    #         yi = self._forward_once(xi)[0]  # forward
-    #         yi = self._descale_pred(yi, fi, si, img_size)
-    #         y.append(yi)
-    #     y = self._clip_augmented(y)  # clip augmented tails
-    #     return torch.cat(y, 1), None  # augmented inference, train
 
-    def _forward_once(self, x): # , profile=False): #, visualize=False):
-        # _profile_one_layer isn't implemented yet, so keep profile=False
-        # visualize is also currently not implemented
-        # y, dt = [], []  # outputs
+    def _forward_once(self, x):
         y = []  # outputs
         for m in self.model:
             if m.f != -1:  # if not from previous layer
                 x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
-            # if profile:
-            #     self._profile_one_layer(m, x, dt) # haven't implemented this yet
             x = m(x)  # run
             y.append(x if m.i in self.save else None)  # save output
         return x
@@ -493,7 +459,6 @@ class Model(nn.Module):
             mi.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
 
     def fuse(self):   # fuse model Conv3d() + BatchNorm3d() layers
-        # LOGGER.info('Fusing layers... ')
         for m in self.model.modules():
             if isinstance(m, (Conv)) and hasattr(m, 'bn'):
                 m.conv = fuse_conv_and_bn(m.conv, m.bn)  # update conv
@@ -502,5 +467,5 @@ class Model(nn.Module):
         self.info()
         return self
 
-    def info(self, verbose=False): # , img_size=default_size):  # print model information
+    def info(self, verbose=False):
         model_info(self, verbose)

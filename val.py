@@ -5,11 +5,9 @@ Example cmd line call: python val.py --data example.yaml --weights ./runs/train/
 
 # standard library imports
 import argparse
-# import json
 import os
 import sys
 from pathlib import Path
-# from threading import Thread
 import numpy as np
 import torch
 from tqdm import tqdm
@@ -22,7 +20,7 @@ if str(ROOT) not in sys.path:
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 # 2D YOLO imports
-from utils.general import check_dataset, check_img_size, check_suffix, check_yaml, increment_path, colorstr, print_args #, set_logging
+from utils.general import check_dataset, check_img_size, check_suffix, check_yaml, increment_path, colorstr, print_args
 from utils.metrics import ap_per_class
 from utils.plots import plot_val_study
 from utils.torch_utils import select_device, time_sync
@@ -222,7 +220,7 @@ def run(data,
                 correct = torch.zeros(pred.shape[0], niou, dtype=torch.bool)
             stats.append((correct.cpu(), pred[:, 6].cpu(), pred[:, 7].cpu(), tcls))  # (correct, conf, pcls, tcls)
 
-            # Save/log
+            # Save
             if save_txt:
                 save_one_txt(predn, save_conf, shape, file=save_dir / 'labels' / (path.stem + '.txt'))
             callbacks.run('on_val_image_end', pred, predn, path, names, img[si])
@@ -279,7 +277,6 @@ def parse_opt():
     parser.add_argument('--task', default='val', help='train, val, test, speed or study')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--single-cls', action='store_true', help='treat as single-class dataset')
-    # parser.add_argument('--augment', action='store_true', help='augmented inference')
     parser.add_argument('--verbose', action='store_true', help='report mAP by class')
     parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
     parser.add_argument('--save-hybrid', action='store_true', help='save label+prediction hybrid results to *.txt')
@@ -291,16 +288,12 @@ def parse_opt():
     parser.add_argument('--norm', type=str, default='CT', help='normalization type, options: CT, MR, Other')
     opt = parser.parse_args()
     opt.data = check_yaml(opt.data)  # check YAML
-    # opt.save_json = False
-    # opt.save_txt = True
     opt.save_txt |= opt.save_hybrid
     print_args(FILE.stem, opt)
     return opt
     
     
 def main(opt):
-    # set_logging()
-
     if opt.task in ('train', 'val', 'test'):  # run normally
         run(**vars(opt))
 
@@ -317,7 +310,7 @@ def main(opt):
             for i in x:  # img-size
                 print(f'\nRunning {f} point {i}...')
                 r, _, t = run(opt.data, weights=w, batch_size=opt.batch_size, imgsz=i, conf_thres=opt.conf_thres,
-                              iou_thres=opt.iou_thres, device=opt.device, plots=False) #, save_json=opt.save_json)
+                              iou_thres=opt.iou_thres, device=opt.device, plots=False)
                 y.append(r + t)  # results and times
             np.savetxt(f, y, fmt='%10.4g')  # save
         os.system('zip -r study.zip study_*.txt')

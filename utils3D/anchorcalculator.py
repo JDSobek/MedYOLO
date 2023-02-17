@@ -115,7 +115,6 @@ def AnchorCalculator(dataset, model, imgsz=default_size, thr=4.0, gen=1000, opt_
     # Kmeans calculation
     print(f'{prefix}Running kmeans for {na} anchors on {len(dwh)} points...')
     s = dwh.std(0)  # sigmas for whitening
-    # k, dist = kmeans(dwh / s, na, iter=30)  # points, mean distance
     k, _ = kmeans(dwh / s, na, iter=30)  # points, mean distance
     
     assert len(k) == na, f'{prefix}ERROR: scipy.cluster.vq.kmeans requested {na} points but returned only {len(k)}'

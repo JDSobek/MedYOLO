@@ -3,33 +3,10 @@
 Dataloaders and dataset utils
 """
 
-# import glob
 import hashlib
-# import json
-# import logging
 import os
-# import random
-# import shutil
-# import time
-# from itertools import repeat
-# from multiprocessing.pool import ThreadPool, Pool
-# from pathlib import Path
-# from threading import Thread
-# from zipfile import ZipFile
 
-# import cv2
-# import numpy as np
 import torch
-# import torch.nn.functional as F
-# import yaml
-# from PIL import Image, ImageOps, ExifTags
-# from torch.utils.data import Dataset
-# from tqdm import tqdm
-
-# from utils.augmentations import Albumentations, augment_hsv, copy_paste, letterbox, mixup, random_perspective
-# from utils.general import check_dataset, check_requirements, check_yaml, clean_str, segments2boxes, \
-#     xywh2xyxy, xywhn2xyxy, xyxy2xywhn, xyn2xy
-# from utils.torch_utils import torch_distributed_zero_first
 
 
 # Parameters

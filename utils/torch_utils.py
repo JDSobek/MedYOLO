@@ -3,29 +3,15 @@
 PyTorch utils
 """
 
-# import datetime
-# import logging
 import math
 import os
-# import platform
-# import subprocess
 import time
 from contextlib import contextmanager
 from copy import deepcopy
-# from pathlib import Path
 
 import torch
 import torch.distributed as dist
 import torch.nn as nn
-# import torch.nn.functional as F
-# import torchvision
-
-# try:
-#     import thop  # for FLOPs computation
-# except ImportError:
-#     thop = None
-
-# LOGGER = logging.getLogger(__name__)
 
 
 @contextmanager
@@ -40,24 +26,8 @@ def torch_distributed_zero_first(local_rank: int):
         dist.barrier(device_ids=[0])
 
 
-# def date_modified(path=__file__):
-#     # return human-readable file modification date, i.e. '2021-3-26'
-#     t = datetime.datetime.fromtimestamp(Path(path).stat().st_mtime)
-#     return f'{t.year}-{t.month}-{t.day}'
-
-
-# def git_describe(path=Path(__file__).parent):  # path must be a directory
-#     # return human-readable git description, i.e. v5.0-5-g3e25f1e https://git-scm.com/docs/git-describe
-#     s = f'git -C {path} describe --tags --long --always'
-#     try:
-#         return subprocess.check_output(s, shell=True, stderr=subprocess.STDOUT).decode()[:-1]
-#     except subprocess.CalledProcessError as e:
-#         return ''  # not a git repository
-
-
 def select_device(device='', batch_size=None):
     # device = 'cpu' or '0' or '0,1,2,3'
-    # s = f'YOLOv5 🚀 {git_describe() or date_modified()} torch {torch.__version__} '  # string
     device = str(device).strip().lower().replace('cuda:', '')  # to string, 'cuda:0' to '0'
     cpu = device == 'cpu'
     if cpu:
@@ -76,10 +46,7 @@ def select_device(device='', batch_size=None):
         for i, d in enumerate(devices):
             p = torch.cuda.get_device_properties(i)
             # s += f"{'' if i == 0 else space}CUDA:{d} ({p.name}, {p.total_memory / 1024 ** 2}MB)\n"  # bytes to MB
-    # else:
-    #     s += 'CPU\n'
 
-    # LOGGER.info(s.encode().decode('ascii', 'ignore') if platform.system() == 'Windows' else s)  # emoji-safe
     return torch.device('cuda:0' if cuda else 'cpu')
 
 
@@ -130,10 +97,6 @@ class EarlyStopping:
         self.possible_stop = delta >= (self.patience - 1)  # possible stop may occur next epoch
         stop = delta >= self.patience  # stop training if patience exceeded
         if stop:
-            # LOGGER.info(f'Stopping training early as no improvement observed in last {self.patience} epochs. '
-            #             f'Best results observed at epoch {self.best_epoch}, best model saved as best.pt.\n'
-            #             f'To update EarlyStopping(patience={self.patience}) pass a new patience value, '
-            #             f'i.e. `python train.py --patience 300` or use `--patience 0` to disable EarlyStopping.')
             print(f'Stopping training early as no improvement observed in last {self.patience} epochs. '
                         f'Best results observed at epoch {self.best_epoch}, best model saved as best.pt.\n'
                         f'To update EarlyStopping(patience={self.patience}) pass a new patience value, '
@@ -154,8 +117,6 @@ class ModelEMA:
     def __init__(self, model, decay=0.9999, updates=0):
         # Create EMA
         self.ema = deepcopy(model.module if is_parallel(model) else model).eval()  # FP32 EMA
-        # if next(model.parameters()).device.type != 'cpu':
-        #     self.ema.half()  # FP16 EMA
         self.updates = updates  # number of EMA updates
         self.decay = lambda x: decay * (1 - math.exp(-x / 2000))  # decay exponential ramp (to help early epochs)
         for p in self.ema.parameters():

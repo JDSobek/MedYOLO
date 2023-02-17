@@ -8,9 +8,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
-# import numpy as np
 import torch
-# import torch.backends.cudnn as cudnn
 
 # set path for local imports
 FILE = Path(__file__).resolve()
@@ -20,7 +18,7 @@ if str(ROOT) not in sys.path:
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 # 2D YOLO imports
-from utils.general import print_args, increment_path, check_suffix, check_img_size, colorstr #, set_logging
+from utils.general import print_args, increment_path, check_suffix, check_img_size, colorstr
 from utils.torch_utils import select_device
 
 # 3D YOLO imports
@@ -55,8 +53,7 @@ def run(weights, # model.pt path(s)
         norm='CT' # normalization mode
         ):
     source = str(source)
-    # save_img = not nosave and not source.endswith('.txt')
-    
+        
     # for some reason the argument is not working and this is needed to save out the labels
     save_txt = True
     
@@ -65,7 +62,6 @@ def run(weights, # model.pt path(s)
     (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
     
     # Initialize
-    # set_logging()
     device = select_device(device)
     half &= device.type != 'cpu'  # half precision only supported on CUDA
     
@@ -87,7 +83,7 @@ def run(weights, # model.pt path(s)
     # Run inference
     if device.type != 'cpu':
         model(torch.zeros(1, 1, imgsz, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
-    # dt, seen = [0.0, 0.0, 0.0], 0
+    
     seen = 0
     
     for path, img, im0s in dataset:
@@ -109,16 +105,14 @@ def run(weights, # model.pt path(s)
             raise Exception("You'll need to write your own normalization algorithm.")
         
         # Inference
-        pred = model(img)[0] #, augment=augment, visualize=visualize)[0]
+        pred = model(img)[0]
 
         # NMS
         pred = non_max_suppression(pred, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)
         
         # Process predictions
-        # for i, det in enumerate(pred):  # per image
         for _, det in enumerate(pred):  # per image
             seen += 1
-            # p, s, im0, frame = path, '', im0s.clone(), getattr(dataset, 'frame', 0)
             p, s, im0, _ = path, '', im0s.clone(), getattr(dataset, 'frame', 0)
 
             p = Path(p)  # to Path
@@ -170,11 +164,8 @@ def parse_opt():
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
     parser.add_argument('--save-conf', action='store_true', help='save confidences in --save-txt labels')
-    # parser.add_argument('--nosave', action='store_true', help='do not save images/videos')
     parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --classes 0, or --classes 0 2 3')
     parser.add_argument('--agnostic-nms', action='store_true', help='class-agnostic NMS')
-    # parser.add_argument('--augment', action='store_true', help='augmented inference')
-    # parser.add_argument('--visualize', action='store_true', help='visualize features')
     parser.add_argument('--project', default=ROOT / 'runs/detect', help='save results to project/name')
     parser.add_argument('--name', default='exp', help='save results to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')

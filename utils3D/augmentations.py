@@ -1,14 +1,15 @@
+"""
+Augmentations used by 3D YOLO    
+"""
+
+
 # standard library imports
-# from configparser import Interpolation
 import random
 import numpy as np
 import torch
-# import math
-# import torchvision
 from typing import List
 
 # 2D YOLO imports
-# from utils.general import colorstr, segment2box, resample_segments, check_version
 
 # 3D YOLO imports
 from utils3D.lossandmetrics import bbox_iov
@@ -49,13 +50,12 @@ def tensor_cutout(im: torch.Tensor, labels, cutout_params: List[List[float]], p=
             
             # apply random greyscale mask
             # images scaled between 0 and 1 after being returned by the dataset
-            # im[:,zmin:zmax, ymin:ymax, xmin:xmax] = random.randint(-1024, 1024)
             im[:,zmin:zmax, ymin:ymax, xmin:xmax] = random.uniform(torch.min(im), torch.max(im))
             
             # remove obscured labels
             if len(labels) and s > 0.03:
                 box = np.array([zmin, xmin, ymin, zmax, xmax, ymax], dtype=np.float32)
-                iov = bbox_iov(box, labels[:, 1:7])  # intersection over area
+                iov = bbox_iov(box, labels[:, 1:7])  # intersection over volume
                 labels = labels[iov < 0.60]  # remove >60% obscured labels
                 
     return labels
