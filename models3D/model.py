@@ -237,7 +237,7 @@ class Detect(nn.Module):
         super().__init__()
         self.nc = nc  # number of classes
         self.no = nc + 7  # number of outputs per anchor, (zxydwh) + nc + 1
-        self.nl = len(anchors)  # number of detection layers, by default 4
+        self.nl = len(anchors)  # number of detection layers
         self.na = len(anchors[0]) // 3 # number of anchors per detection layer
         self.grid = [torch.zeros(1)] * self.nl  # initialize grid
         self.anchor_grid = [torch.zeros(1)] * self.nl  # initialize anchor grid
@@ -251,7 +251,7 @@ class Detect(nn.Module):
     def forward(self, x):
         z = [] # inference output
         for i in range(self.nl):           
-            # The module list receives inputs from 4 different layers of the network, one for each detection layer
+            # The module list receives inputs from different layers of the network, one for each detection layer
             # and has separate Conv layers to handle each of those inputs
             x[i] = self.m[i](x[i])  # conv
 

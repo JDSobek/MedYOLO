@@ -37,7 +37,7 @@ def run(weights, # model.pt path(s)
         imgsz=default_size,
         conf_thres=0.25,  # confidence threshold
         iou_thres=0.45,  # NMS IOU threshold
-        max_det=1000,  # maximum detections per image
+        max_det=100,  # maximum detections per image
         device='',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
         save_txt=True,  # save results to *.txt
         save_conf=False,  # save confidences in --save-txt labels
@@ -108,7 +108,7 @@ def run(weights, # model.pt path(s)
         pred = model(img)[0]
 
         # NMS
-        pred = non_max_suppression(pred, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)
+        pred = non_max_suppression(pred, conf_thres, iou_thres, classes, agnostic_nms, multi_label=True, max_det=max_det)
         
         # Process predictions
         for _, det in enumerate(pred):  # per image
@@ -158,9 +158,9 @@ def parse_opt():
     parser.add_argument('--weights', nargs='+', type=str, default='', help='model path(s)')
     parser.add_argument('--source', type=str, default='', help='file/dir')
     parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[default_size], help='inference size characteristic length')
-    parser.add_argument('--conf-thres', type=float, default=0.1, help='confidence threshold')
+    parser.add_argument('--conf-thres', type=float, default=0.25, help='confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='NMS IoU threshold')
-    parser.add_argument('--max-det', type=int, default=1, help='maximum detections per image')
+    parser.add_argument('--max-det', type=int, default=100, help='maximum detections per image')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
     parser.add_argument('--save-conf', action='store_true', help='save confidences in --save-txt labels')

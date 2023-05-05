@@ -30,11 +30,12 @@ def torch_to_nifti(data_tensor: torch.Tensor, nifti_path: str, affine, size):
     
 
 def mask_maker(label_path: str, nifti_path: str, mask_path: str):
-    """Makes nifti masks out of YOLO labels.
-    Only works with 1 label per mask, will need changes for multiple label masks
+    """
+    Makes nifti masks out of YOLO label txt files.  Only works for one label per mask.
     Args:
-        label (torch.Tensor or np.ndarray): YOLO label
-        mask_dir (str): folder to save created nifti mask to
+        label_path: path to the YOLO label file.
+        nifti_path: path to the corresponding nifti image file.
+        mask_path: path to save the resultant mask as.
     """
     f = open(label_path, 'r')
     label = list(filter(None, f.read().split('\n'))) # filtering out blank lines
@@ -66,12 +67,12 @@ def mask_maker(label_path: str, nifti_path: str, mask_path: str):
         x_length = w*width
         y_length = h*height
         
-        min_z = int(z_center - z_length/2)
-        max_z = int(z_center + z_length/2)
-        min_x = int(x_center - x_length/2)
-        max_x = int(x_center + x_length/2)
-        min_y = int(y_center - y_length/2)
-        max_y = int(y_center + y_length/2)
+        min_z = int(round(z_center - z_length/2))
+        max_z = int(round(z_center + z_length/2))
+        min_x = int(round(x_center - x_length/2))
+        max_x = int(round(x_center + x_length/2))
+        min_y = int(round(y_center - y_length/2))
+        max_y = int(round(y_center + y_length/2))
         
         mask_array[min_x:max_x, min_y:max_y, min_z:max_z] = 1
         
