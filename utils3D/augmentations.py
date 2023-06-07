@@ -58,7 +58,7 @@ def tensor_cutout(im: torch.Tensor, labels, cutout_params: List[List[float]], p=
                 iov = bbox_iov(box, labels[:, 1:7])  # intersection over volume
                 labels = labels[iov < 0.60]  # remove >60% obscured labels
                 
-    return labels
+    return im, labels
 
 
 def random_zoom(im: torch.Tensor, labels, max_zoom=1.5, min_zoom=0.7, p=0.5):
@@ -156,10 +156,10 @@ def random_zoom(im: torch.Tensor, labels, max_zoom=1.5, min_zoom=0.7, p=0.5):
             ymax = ymin + new_h
             
             # create a new tensor 
-            # new_im = torch.rand(1, d, w, h)*2048. - 1024.
             new_im = torch.rand(1, d, w, h)*(torch.max(im) - torch.min(im)) + torch.min(im)
             new_im[:,zmin:zmax, xmin:xmax, ymin:ymax] = im
             im = new_im
+            del new_im
             
             # move labels to correspond to new center of zoom
             y[:, 1] = y[:, 1] + zmin

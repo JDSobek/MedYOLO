@@ -95,14 +95,13 @@ def run(weights, # model.pt path(s)
         
         if norm.lower() == 'ct':
             # Normalization for Hounsfield units, may see performance improvements by clipping images to +/- 1024.
-            # This should be changed for scans that are not CT
             img = (img + 1024.) / 2048.0  # int to float32, -1024-1024 to 0.0-1.0
         elif norm.lower() == 'mr':
             mean = torch.mean(img, dim=[1,2,3,4], keepdim=True)
             std_dev = torch.std(img, dim=[1,2,3,4], keepdim=True)
             img = (img - mean)/std_dev
         else:
-            raise Exception("You'll need to write your own normalization algorithm.")
+            raise NotImplementedError("You'll need to write your own normalization algorithm here.")
         
         # Inference
         pred = model(img)[0]

@@ -182,6 +182,13 @@ def bbox_centerDist(box1, box2, z1x1y1z2x2y2: bool =True):
     return dist
 
 
+def box_regression(pred_sub, layer_anchors):
+    """Regression formula to convert model output into bounding box predictions."""
+    pzxy = pred_sub[:, :3].sigmoid() * 2. - 0.5
+    pdwh = (pred_sub[:, 3:6].sigmoid() * 2) ** 2 * layer_anchors
+    return torch.cat((pzxy, pdwh), 1)  # predicted box
+
+
 class ComputeLossVF:
     """Compute losses in 3D"""
     def __init__(self, model, autobalance=False):
@@ -193,28 +200,30 @@ class ComputeLossVF:
         """
         self.sort_obj_iou = False
         device = next(model.parameters()).device  # get model device
-        h = model.hyp  # hyperparameters
+        self.hyp = model.hyp  # hyperparameters
 
         # Define criteria
-        BCEcls = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([h['cls_pw']], device=device))
-        BCEobj = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([h['obj_pw']], device=device))
+        BCEcls = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([self.hyp['cls_pw']], device=device))
+        BCEobj = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([self.hyp['obj_pw']], device=device))
 
         # Class label smoothing https://arxiv.org/pdf/1902.04103.pdf eqn 3
-        self.cp, self.cn = smooth_BCE(eps=h.get('label_smoothing', 0.0))  # positive, negative BCE targets
+        self.cp, self.cn = smooth_BCE(eps=self.hyp.get('label_smoothing', 0.0))  # positive, negative BCE targets
 
         # Focal loss
-        self.g = h['fl_gamma']  # focal loss gamma
+        self.g = self.hyp['fl_gamma']  # focal loss gamma
         if self.g > 0:
             BCEcls = FocalLoss(BCEcls, self.g)
 
         det = model.module.model[-1] if is_parallel(model) else model.model[-1]  # model's Detect() module in the last layer
         self.balance = {3: [4.0, 1.0, 0.4]}.get(det.nl, [4.0, 1.0, 0.25, 0.06, .02])  # P3-P7
         self.ssi = list(det.stride).index(16) if autobalance else 0  # stride 16 index
-        self.BCEcls, self.BCEobj, self.gr, self.hyp, self.autobalance = BCEcls, BCEobj, 1.0, h, autobalance
+        self.BCEcls, self.BCEobj, self.autobalance = BCEcls, BCEobj, autobalance
+        self.gr = 1.0
         # extract model hyperparameters from Detect() module and store them as class attributes
-        for k in 'na', 'nc', 'nl', 'anchors':
-            setattr(self, k, getattr(det, k))
-
+        self.na = det.na
+        self.nc = det.nc
+        self.nl = det.nl
+        self.anchors = det.anchors
 
     def __call__(self, p, targets):
         """Calculate losses
@@ -241,15 +250,14 @@ class ComputeLossVF:
                 ps = pi[b, a, gi, gk, gj]  # prediction subset corresponding to targets
 
                 # Regression
-                pzxy = ps[:, :3].sigmoid() * 2. - 0.5
-                pdwh = (ps[:, 3:6].sigmoid() * 2) ** 2 * anchors[i]
-                pbox = torch.cat((pzxy, pdwh), 1)  # predicted box
+                pbox = box_regression(ps, anchors[i])  # predicted box
                 iou = bbox_iou(pbox.T, tbox[i], z1x1y1z2x2y2=False) #, CIoU=True)  # iou(prediction, target)
                 lbox += (1.0 - iou).mean()  # iou loss
                 
                 # extra box loss factors to test
-                center_dist = bbox_centerDist(pbox.T, tbox[i], z1x1y1z2x2y2=False)
-                lbox += center_dist.mean()
+                # center_dist = bbox_centerDist(pbox.T, tbox[i], z1x1y1z2x2y2=False)
+                # lbox += center_dist.mean()
+                lbox += bbox_centerDist(pbox.T, tbox[i], z1x1y1z2x2y2=False).mean()
 
                 # Objectness
                 score_iou = iou.detach().clamp(0).type(tobj.dtype)
@@ -264,13 +272,13 @@ class ComputeLossVF:
                     t[range(n), tcls[i]] = self.cp
                     lcls += (self.BCEcls(ps[:, 7:], t))  # BCE
 
-            # implementing varifocal loss
+            # using varifocal loss
             alpha = 0.75
             if self.g > 0:
                 focal_weight = tobj*(tobj > 0.0).float() + alpha*(pi[...,6].sigmoid() - tobj).abs().pow(self.g)*(tobj<=0.0).float()                
                 obji = torch.nn.functional.binary_cross_entropy_with_logits(pi[..., 6], tobj, reduction='none') * focal_weight
                 obji = weight_reduce_loss(obji)
-            # no varifocal/focal loss       
+            # no varifocal/focal loss
             else:
                 obji = self.BCEobj(pi[..., 6], tobj)
             
@@ -302,11 +310,11 @@ class ComputeLossVF:
             indices (List[Tuple[float]]): image, anchor, and grid indices for each detection layer
             anch (List[int]): List of anchors corresponding to each detection layer
         """
-        na, nt = self.na, targets.shape[0]  # number of anchors, targets
+        # na, nt = self.na, targets.shape[0]  # number of anchors, targets
         tcls, tbox, indices, anch = [], [], [], []
         gain = torch.ones(9, device=targets.device)  # normalized to gridspace gain
-        ai = torch.arange(na, device=targets.device).float().view(na, 1).repeat(1, nt)  # same as .repeat_interleave(nt)
-        targets = torch.cat((targets.repeat(na, 1, 1), ai[:, :, None]), 2)  # append anchor indices
+        ai = torch.arange(self.na, device=targets.device).float().view(self.na, 1).repeat(1, targets.shape[0])  # same as .repeat_interleave(nt)
+        targets = torch.cat((targets.repeat(self.na, 1, 1), ai[:, :, None]), 2)  # append anchor indices
 
         g = 0.5  # bias
         # 3D offsets:
@@ -320,7 +328,7 @@ class ComputeLossVF:
 
             # Match target (normalized) size to anchors
             t = targets * gain           
-            if nt:
+            if targets.shape[0]:
                 # Matches
                 r = t[:, :, 5:8] / anchors[:, None]  # dwh ratio of anchors to targets
                 # compare - if any dimension of the anchor is off by more than a

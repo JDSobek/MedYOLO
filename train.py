@@ -190,7 +190,7 @@ def train(hyp, opt, device, callbacks):
         model = DDP(model, device_ids=[LOCAL_RANK], output_device=LOCAL_RANK)
         
     # Model parameters
-    nl = de_parallel(model).model[-1].nl  # number of detection layers (to scale hyps), default for YOLOv5 models is 3, YOLO3D uses 4
+    nl = de_parallel(model).model[-1].nl  # number of detection layers (to scale hyps), default is 3
     hyp['box'] *= 3. / nl  # scale to layers
     hyp['cls'] *= nc / 80. * 3. / nl  # scale to classes and layers
     hyp['obj'] *= (imgsz / default_size) ** 3 * 3. / nl  # scale to image size and layers
@@ -211,7 +211,7 @@ def train(hyp, opt, device, callbacks):
     scaler = amp.GradScaler(enabled=cuda)
     stopper = EarlyStopping(patience=opt.patience)
     compute_loss = ComputeLossVF(model)  # init Varifocal loss class
-    
+
     for epoch in range(epochs):  # epoch ------------------------------------------------------------------
         model.train()
         mloss = torch.zeros(3, device=device)  # mean losses
@@ -226,13 +226,13 @@ def train(hyp, opt, device, callbacks):
         # train loop
         for i, (imgs, targets, paths, _) in pbar:  # batch -------------------------------------------------------------
             ni = i + nb * epoch  # number integrated batches (since train start)
-            # Normalization, may need replacement depending on your needs
+            # Normalization
             if norm.lower() == 'ct':
                 imgs = normalize_CT(imgs.to(device, non_blocking=True).float())  # int to float32, -1024-1024 to 0.0-1.0
             elif norm.lower() == 'mr':
                 imgs = normalize_MR(imgs.to(device, non_blocking=True).float())  # int to float32, mean 0 std dev
             else:
-                raise Exception("You'll need to write your own normalization algorithm.")
+                raise NotImplementedError("You'll need to write your own normalization algorithm here.")
 
             # Warmup
             if ni <= nw:
@@ -249,6 +249,7 @@ def train(hyp, opt, device, callbacks):
             with amp.autocast(enabled=cuda):
                 pred = model(imgs)  # forward
                 loss, loss_items = compute_loss(pred, targets.to(device).float())  # loss scaled by batch_size
+                del pred
 
                 if RANK != -1:
                     loss *= WORLD_SIZE  # gradient averaged between devices in DDP mode
@@ -272,6 +273,7 @@ def train(hyp, opt, device, callbacks):
                 pbar.set_description(('%10s' * 2 + '%10.4g' * 5) % (
                     f'{epoch}/{epochs - 1}', mem, *mloss, targets.shape[0], imgs.shape[-1]))
                 callbacks.run('on_train_batch_end', ni, model, imgs, targets, paths, plots, False)
+            del imgs, targets
             # end batch ------------------------------------------------------------------------------------------------
             
         # Scheduler
@@ -328,8 +330,8 @@ def train(hyp, opt, device, callbacks):
 
         # end epoch ----------------------------------------------------------------------------------------------------
     # end training -----------------------------------------------------------------------------------------------------
-    
-     # a final validation loop to compare the model with the final trained weights to the model with the best score from above
+
+    # a final validation loop to compare the model with the final trained weights to the model with the best score from above
     if RANK in [-1, 0]:
         for f in last, best:
             if f.exists():

@@ -255,6 +255,33 @@ class LoadNiftisAndLabels(Dataset):
             print(f'{prefix}WARNING: Cache directory {path.parent} is not writeable: {e}')
         return x
 
+    def load_nifti(self, i):
+        """Reads a nifti file, converts it to a torch.tensor, and reshapes and resizes it for use in the YOLO3D model.
+
+        Args:
+            i (int): Dataset index for the nifti to be loaded
+
+        Returns:
+            im (torch.tensor): YOLO3D input tensor containing the nifti image data
+            d0 (int): original image depth
+            h0 (int): original image height
+            w0 (int): original image width
+            im.size()[1:] (List(int)): current image depth, height, and width
+        """
+        # loads 1 image from dataset index 'i'
+        path = self.img_files[i]
+        im, affine = open_nifti(path)
+
+        # reshape im from height, width, depth to depth, height, width to make it compatible with torch convolutions
+        im = transpose_nifti_shape(im)
+
+        d0, h0, w0 = im.size()
+
+        # resize im to self.img_size
+        im = change_nifti_size(im, self.img_size)
+
+        return im, (d0, h0, w0), im.size()[1:], affine
+
     def __len__(self):
         return len(self.img_files)
 
@@ -270,12 +297,8 @@ class LoadNiftisAndLabels(Dataset):
             self.img_files[index] (str): path to the loaded nifti
             shapes (Tuple[Tuple[float]]): Tuple containing Tuples of relative shape information for original image, resized image, and padding
         """
-        index = self.indices[index]  # linear, shuffled, or image_weights
-
-        hyp = self.hyp # used to configure augmentation
-        
         # Load image
-        img, (d0, h0, w0), (d, h, w), _ = load_nifti(self, index)
+        img, (d0, h0, w0), (d, h, w), _ = self.load_nifti(self.indices[index])
 
         # Letterbox
         # shape = (self.img_size, self.img_size, self.img_size) # not adding rectangular training yet
@@ -284,7 +307,7 @@ class LoadNiftisAndLabels(Dataset):
         pad = (0, 0, 0) # shape not changing so not padding any side
         shapes = (d0, h0, w0), ((d/d0, h/h0, w/w0), pad)
 
-        labels = self.labels[index].copy()
+        labels = self.labels[self.indices[index]].copy()
         nl = len(labels)  # number of labels
 
         if self.augment:           
@@ -293,7 +316,7 @@ class LoadNiftisAndLabels(Dataset):
                 labels[:, 1:] = zxydwhn2zxyzxy(labels[:, 1:], d, w, h, pad[0], pad[1], pad[2])                    
 
             # random zoom
-            img, labels = random_zoom(img, labels, hyp['max_zoom'], hyp['min_zoom'], hyp['prob_zoom'])
+            img, labels = random_zoom(img, labels, self.hyp['max_zoom'], self.hyp['min_zoom'], self.hyp['prob_zoom'])
         
             # transformation of labels back to standard format
             if nl:
@@ -308,7 +331,7 @@ class LoadNiftisAndLabels(Dataset):
             # Flip left-right
             
             # Cutouts
-            labels = tensor_cutout(img, labels, hyp['cutout_params'], hyp['prob_cutout'])            
+            img, labels = tensor_cutout(img, labels, self.hyp['cutout_params'], self.hyp['prob_cutout'])
             # update after cutout
             nl = len(labels)  # number of labels
         
@@ -316,7 +339,7 @@ class LoadNiftisAndLabels(Dataset):
         if nl:
             labels_out[:, 1:] = torch.from_numpy(labels)
 
-        return img, labels_out, self.img_files[index], shapes
+        return img, labels_out, self.img_files[self.indices[index]], shapes
 
     @staticmethod
     def collate_fn(batch):
@@ -367,7 +390,7 @@ def nifti_dataloader(path: str, imgsz: int, batch_size: int, stride: int, single
                         batch_size=batch_size,
                         num_workers=nw,
                         sampler=sampler,
-                        pin_memory=True,
+                        pin_memory=True, # may need to set False to resolve memory issues
                         collate_fn=LoadNiftisAndLabels.collate_fn)
     return dataloader, dataset
 
@@ -417,7 +440,7 @@ def verify_image_label(args):
         # verify images
         im = np.array(nib.load(im_file).dataobj)
         shape = (im.shape[2], im.shape[0], im.shape[1]) # need to transpose to account for depth reshaping that will happen to image tensors
-        # assert call may need to be reworked depending on model requirements, this is just an estimate
+        # assert call may need to be reworked for non-nifti data-types or if larger minimum sizes are required
         assert (shape[0] > 9) & (shape[1] > 99) & (shape[2] > 99), f'image size {shape} < 10x100x100 voxels'
         assert im_file.split('.')[-1].lower() in IMG_FORMATS or im_file.split('.')[-2].lower() in IMG_FORMATS, f'invalid image format {im_file}'
 
@@ -456,15 +479,19 @@ def open_nifti(filepath: str):
         filepath (str): Path to the nifti file
 
     Returns:
-        nifti_tensor (torch.tensor): Tensor containing the nifti image data
+        nifti (torch.tensor): Tensor containing the nifti image data
         nifti_affine: affine array for the nifti
     """
     nifti = nib.load(filepath)
-    nifti_array = np.array(nifti.dataobj)
     nifti_affine = nifti.affine
-    assert nifti_array is not None, 'Image Not Found ' + filepath
-    nifti_tensor = torch.tensor(nifti_array, dtype=torch.float)
-    return nifti_tensor, nifti_affine
+    # nifti_array = np.array(nifti.dataobj)
+    # assert nifti_array is not None, 'Image Not Found ' + filepath
+    # nifti_tensor = torch.tensor(nifti_array, dtype=torch.float)
+    # return nifti_tensor, nifti_affine
+    nifti = np.array(nifti.dataobj)
+    assert nifti is not None, 'Image Not Found ' + filepath
+    nifti = torch.tensor(nifti, dtype=torch.float)
+    return nifti, nifti_affine
 
 
 def transpose_nifti_shape(nifti_tensor: torch.Tensor):
@@ -502,34 +529,6 @@ def change_nifti_size(nifti_tensor: torch.Tensor, new_size: int):
     # remove batch dimension for compatibility with later code
     nifti_tensor = torch.squeeze(nifti_tensor, 0)
     return nifti_tensor
-
-
-def load_nifti(self, i):
-    """Reads a nifti file, converts it to a torch.tensor, and reshapes and resizes it for use in the YOLO3D model.
-
-    Args:
-        i (int): Dataset index for the nifti to be loaded
-
-    Returns:
-        im (torch.tensor): YOLO3D input tensor containing the nifti image data
-        d0 (int): original image depth
-        h0 (int): original image height
-        w0 (int): original image width
-        im.size()[1:] (List(int)): current image depth, height, and width
-    """
-    # loads 1 image from dataset index 'i'
-    path = self.img_files[i]
-    im, affine = open_nifti(path)
-
-    # reshape im from height, width, depth to depth, height, width to make it compatible with torch convolutions
-    im = transpose_nifti_shape(im)
-
-    d0, h0, w0 = im.size()
-
-    # resize im to self.img_size
-    im = change_nifti_size(im, self.img_size)
-
-    return im, (d0, h0, w0), im.size()[1:], affine
 
 
 def normalize_CT(imgs):

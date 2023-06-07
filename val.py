@@ -159,14 +159,13 @@ def run(data,
         
         if norm.lower() == 'ct':
             # Normalization for Hounsfield units, may see performance improvements by clipping images to +/- 1024.
-            # This should be changed for scans that are not CT
             img = (img + 1024.) / 2048.
         elif norm.lower() == 'mr':
             mean = torch.mean(img, dim=[1,2,3,4], keepdim=True)
             std_dev = torch.std(img, dim=[1,2,3,4], keepdim=True)
             img = (img - mean)/std_dev
         else:
-            raise Exception("You'll need to write your own normalization algorithm.")
+            raise NotImplementedError("You'll need to write your own normalization algorithm here.")
         
         targets = targets.to(device)
         nb, _, depth, height, width = img.shape  # batch size, channels, depth, height, width

@@ -319,7 +319,8 @@ def scale_img(img, ratio=1.0, same_shape=False, gs=32):
     else:
         d, h, w = img.shape[2:]
         s = (int(d * ratio), int(h * ratio), int(w * ratio))  # new size
-        img = F.interpolate(img, size=s, mode='bilinear', align_corners=False)  # resize
+        # img = F.interpolate(img, size=s, mode='bilinear', align_corners=False)  # resize
+        img = F.interpolate(img, size=s, mode='trilinear', align_corners=False)  # resize
         if not same_shape:  # pad/crop img
             d, h, w = (math.ceil(x * ratio / gs) * gs for x in (d, h, w))
         # YOLOv5 reverses x and y here, I'm not sure why but have emulated that
@@ -404,7 +405,7 @@ class Model(nn.Module):
             self.yaml = cfg  # model dict
         else:  # is *.yaml
             import yaml  # for torch hub
-            self.yaml_file = Path(cfg).name
+            # self.yaml_file = Path(cfg).name
             with open(cfg, errors='ignore') as f:
                 self.yaml = yaml.safe_load(f)  # model dict
 
