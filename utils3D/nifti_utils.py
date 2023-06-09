@@ -155,9 +155,15 @@ def run(nifti_dir, bbox_dir, mask_dir, mask_tag):
     for file in file_list:
         try:
             print(file)
-            label = file.split('/')[-1].split('.')[0] + '.txt'
-            label_path = os.path.join(bbox_dir, label)
-            mask_path = os.path.join(mask_dir, file.split('/')[-1].split('.')[0] + mask_tag + '.nii.gz')
+            if file.endswith('.nii'):
+                label = file.split('/')[-1][:-4] + '.txt'
+                label_path = os.path.join(bbox_dir, label)
+                mask_path = os.path.join(mask_dir, file.split('/')[-1][:-4] + mask_tag + '.nii.gz')
+        
+            if file.endswith('.nii.gz'):
+                label = file.split('/')[-1][:-7] + '.txt'
+                label_path = os.path.join(bbox_dir, label)
+                mask_path = os.path.join(mask_dir, file.split('/')[-1][:-7] + mask_tag + '.nii.gz')
             mask_maker(label_path, file, mask_path)
             # multilabel_mask_maker(label_path, file, mask_path)
         except FileNotFoundError:
