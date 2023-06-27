@@ -9,6 +9,7 @@ import os
 import nibabel as nib
 import numpy as np
 import torch
+import math
 
 
 def torch_to_nifti(data_tensor: torch.Tensor, nifti_path: str, affine, size):
@@ -77,12 +78,19 @@ def multilabel_mask_maker(bbox_path: str, nifti_path: str, mask_path: str):
         x_length = w * width
         y_length = h * height
 
-        min_z = int(round(z_center - z_length / 2))
-        max_z = int(round(z_center + z_length / 2))
-        min_x = int(round(x_center - x_length / 2))
-        max_x = int(round(x_center + x_length / 2))
-        min_y = int(round(y_center - y_length / 2))
-        max_y = int(round(y_center + y_length / 2))
+        min_z = int(math.floor(z_center - z_length / 2))
+        max_z = int(math.ceil(z_center + z_length / 2))
+        min_x = int(math.floor(x_center - x_length / 2))
+        max_x = int(math.ceil(x_center + x_length / 2))
+        min_y = int(math.floor(y_center - y_length / 2))
+        max_y = int(math.ceil(y_center + y_length / 2))
+
+        min_z = max(0, min_z)
+        max_z = min(depth, max_z)
+        min_y = max(0, min_y)
+        max_y = min(height, max_y)
+        min_x = max(0, min_x)
+        max_x = min(width, max_x)
 
         mask_array[min_x:max_x+1, min_y:max_y+1, min_z:max_z+1] = 1
 
@@ -94,6 +102,7 @@ def multilabel_mask_maker(bbox_path: str, nifti_path: str, mask_path: str):
 def mask_maker(bbox_path: str, nifti_path: str, mask_path: str):
     """
     Makes nifti masks out of YOLO label txt files.  Only works for one label per mask.
+    Labels should have one prediction without confidence metric.
     Args:
         bbox_path: path to the MedYOLO label file.
         nifti_path: path to the corresponding nifti image file.
@@ -127,21 +136,28 @@ def mask_maker(bbox_path: str, nifti_path: str, mask_path: str):
         z_length = d*depth
         x_length = w*width
         y_length = h*height
-        
-        min_z = int(round(z_center - z_length/2))
-        max_z = int(round(z_center + z_length/2))
-        min_x = int(round(x_center - x_length/2))
-        max_x = int(round(x_center + x_length/2))
-        min_y = int(round(y_center - y_length/2))
-        max_y = int(round(y_center + y_length/2))
-        
-        mask_array[min_x:max_x, min_y:max_y, min_z:max_z] = 1
+
+        min_z = int(math.floor(z_center - z_length / 2))
+        max_z = int(math.ceil(z_center + z_length / 2))
+        min_x = int(math.floor(x_center - x_length / 2))
+        max_x = int(math.ceil(x_center + x_length / 2))
+        min_y = int(math.floor(y_center - y_length / 2))
+        max_y = int(math.ceil(y_center + y_length / 2))
+
+        min_z = max(0, min_z)
+        max_z = min(depth, max_z)
+        min_y = max(0, min_y)
+        max_y = min(height, max_y)
+        min_x = max(0, min_x)
+        max_x = min(width, max_x)
+
+        mask_array[min_x:max_x+1, min_y:max_y+1, min_z:max_z+1] = 1
         
     mask_nifti = nib.Nifti1Image(mask_array, nifti.affine)
     nib.save(mask_nifti, mask_path)
 
 
-def run(nifti_dir, bbox_dir, mask_dir, mask_tag):
+def run(nifti_dir, bbox_dir, mask_dir, mask_tag, single_mask=False):
     """
     Creates nifti masks for MedYOLO bounding boxes found in bbox_dir that have a corresponding nifti image in nifti_dir.
     See mask maker functions above for more details.
@@ -164,8 +180,10 @@ def run(nifti_dir, bbox_dir, mask_dir, mask_tag):
                 label = file.split('/')[-1][:-7] + '.txt'
                 label_path = os.path.join(bbox_dir, label)
                 mask_path = os.path.join(mask_dir, file.split('/')[-1][:-7] + mask_tag + '.nii.gz')
-            mask_maker(label_path, file, mask_path)
-            # multilabel_mask_maker(label_path, file, mask_path)
+            if single_mask:
+                mask_maker(label_path, file, mask_path)
+            else:
+                multilabel_mask_maker(label_path, file, mask_path)
         except FileNotFoundError:
             continue
 
@@ -176,6 +194,9 @@ def parse_opt():
     parser.add_argument('--bbox-dir', type=str, default='', help='directory containing MedYOLO predictions for the niftis')
     parser.add_argument('--mask-dir', type=str, default='', help='directory to save nifti masks in')
     parser.add_argument('--mask-tag', type=str, default='', help='tag appended to mask filenames')
+    # This option is generally intended for single class tasks but can generate masks for multi-label tasks
+    # Leaving it false will generate a separate mask file for every prediction that saves the highest confidence prediction for each class
+    parser.add_argument('--single-mask', action='store_true', help='generate one mask file with all classes flattened into class 1')
     opt = parser.parse_args()
     return opt
 
