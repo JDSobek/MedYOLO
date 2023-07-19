@@ -372,8 +372,9 @@ def parse_model(d, ch):
         elif m is Detect:
             args.append([ch[x] for x in f])
             # args[1] for the Detect layer stores the nested list of anchors
-            if isinstance(args[1], int):  # number of anchors
-                args[1] = [list(range(args[1] * 2))] * len(f)
+            if isinstance(args[1], int):  # number of anchors given instead of a list of anchors
+                # args[1] = [list(range(args[1] * 2))] * len(f)
+                args[1] = [list(range(args[1] * 3))] * len(f)
         else:
             c2 = ch[f]
 
