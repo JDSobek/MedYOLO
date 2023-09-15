@@ -1,6 +1,6 @@
 # first install appropriate versions of cudnn and cudatoolkit for your hardware, i.e. run:
 # conda install cudnn=8.2 cudatoolkit=11.3
-# conda install --file requirements.txt -c pytorch
+# conda install --file requirements.txt -c pytorch -c conda-forge
 
 # Base ----------------------------------------
 matplotlib>=3.2.2
