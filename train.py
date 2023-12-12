@@ -446,25 +446,11 @@ def main(opt, callbacks=Callbacks()):
                 'obj_pw': (1, 0.5, 2.0),  # obj BCELoss positive_weight
                 'iou_t': (0, 0.1, 0.7),  # IoU training threshold
                 'anchor_t': (1, 2.0, 8.0),  # anchor-multiple threshold
-                # 'anchors': (2, 2.0, 10.0),  # anchors per output grid (0 to ignore)
                 'fl_gamma': (0, 0.0, 2.0),  # focal loss gamma (efficientDet default gamma=1.5)
                 'max_zoom': (0, 1.0, 2.0), # maximum zoom factor
                 'min_zoom': (0, 0.4, 1.0), # minimum zoom factor
                 'prob_zoom': (0, 0.3, 0.7), # probability of zoom augmentation
                 'prob_cutout': (0, 0.3, 0.7), # probability of cutout augmentation
-                # 'hsv_h': (1, 0.0, 0.1),  # image HSV-Hue augmentation (fraction)
-                # 'hsv_s': (1, 0.0, 0.9),  # image HSV-Saturation augmentation (fraction)
-                # 'hsv_v': (1, 0.0, 0.9),  # image HSV-Value augmentation (fraction)
-                # 'degrees': (1, 0.0, 45.0),  # image rotation (+/- deg)
-                # 'translate': (1, 0.0, 0.9),  # image translation (+/- fraction)
-                # 'scale': (1, 0.0, 0.9),  # image scale (+/- gain)
-                # 'shear': (1, 0.0, 10.0),  # image shear (+/- deg)
-                # 'perspective': (0, 0.0, 0.001),  # image perspective (+/- fraction), range 0-0.001
-                # 'flipud': (1, 0.0, 1.0),  # image flip up-down (probability)
-                # 'fliplr': (0, 0.0, 1.0),  # image flip left-right (probability)
-                # 'mosaic': (1, 0.0, 1.0),  # image mixup (probability)
-                # 'mixup': (1, 0.0, 1.0),  # image mixup (probability)
-                # 'copy_paste': (1, 0.0, 1.0)  # segment copy-paste (probability)
         }
         
         with open(opt.hyp, errors='ignore') as f:

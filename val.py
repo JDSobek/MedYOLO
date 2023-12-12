@@ -84,7 +84,6 @@ def run(data,
         task='val',  # train, val, test, speed or study
         device='',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
         single_cls=False,  # treat as single-class dataset
-        # augment=False,  # augmented inference
         verbose=False,  # verbose output
         save_txt=False,  # save results to *.txt
         save_hybrid=False,  # save label+prediction hybrid results to *.txt
@@ -99,7 +98,7 @@ def run(data,
         plots=True,
         callbacks=Callbacks(),
         compute_loss=None,
-        norm='CT'
+        norm='CT'  # normalization mode, options: CT, MR, Other
         ):
     
     # Initialize/load model and set device

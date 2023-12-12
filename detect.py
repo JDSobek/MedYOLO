@@ -32,31 +32,25 @@ default_size = 350 # edge length for testing
 
 
 @torch.no_grad()
-def run(weights, # model.pt path(s)
-        source=ROOT / 'data/images', # directory containing images to run inference on
+def run(weights,  # model.pt path(s)
+        source=ROOT / 'data/images',  # directory containing images to run inference on
         imgsz=default_size,
         conf_thres=0.25,  # confidence threshold
         iou_thres=0.45,  # NMS IOU threshold
         max_det=100,  # maximum detections per image
         device='',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
-        save_txt=True,  # save results to *.txt
+        save_txt=False,  # save results to *.txt
         save_conf=False,  # save confidences in --save-txt labels
-        # nosave=False,  # do not save images/videos
         classes=None,  # filter by class: --class 0, or --class 0 2 3
         agnostic_nms=False,  # class-agnostic NMS
-        # augment=False,  # augmented inference - not implemented in model yet
-        # visualize=False,  # visualize features - not implemented in model yet
         project=ROOT / 'runs/detect',  # save results to project/name
         name='exp',  # save results to project/name
         exist_ok=False,  # existing project/name ok, do not increment
         half=False,  # use FP16 half-precision inference
-        norm='CT' # normalization mode
+        norm='CT'  # normalization mode, options: CT, MR, Other
         ):
     source = str(source)
-        
-    # for some reason the argument is not working and this is needed to save out the labels
-    save_txt = True
-    
+
     # Directories
     save_dir = increment_path(Path(project) / name, exist_ok=exist_ok)  # increment run
     (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir

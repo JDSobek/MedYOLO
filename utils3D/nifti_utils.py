@@ -15,6 +15,7 @@ import math
 def torch_to_nifti(data_tensor: torch.Tensor, nifti_path: str, affine, size):
     """
     Converts unnormalized torch tensor into a nifti image.
+    Useful for debugging new (e.g. non-NIfTI) dataloader pipelines.
     """
     # add batch dimension for functional interpolate
     data_tensor = torch.unsqueeze(data_tensor, 0)
@@ -193,7 +194,7 @@ def parse_opt():
     parser.add_argument('--nifti-dir', type=str, default='', help='directory containing the niftis masks are needed for')
     parser.add_argument('--bbox-dir', type=str, default='', help='directory containing MedYOLO predictions for the niftis')
     parser.add_argument('--mask-dir', type=str, default='', help='directory to save nifti masks in')
-    parser.add_argument('--mask-tag', type=str, default='', help='tag appended to mask filenames')
+    parser.add_argument('--mask-tag', type=str, default='', help='tag appended to distinguish mask filenames from their corresponding input')
     # This option is generally intended for single class tasks but can generate masks for multi-label tasks
     # Leaving it false will generate a separate mask file for every prediction that saves the highest confidence prediction for each class
     parser.add_argument('--single-mask', action='store_true', help='generate one mask file with all classes flattened into class 1')
