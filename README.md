@@ -1,7 +1,7 @@
 # MedYOLO
 
 A 3D bounding box detection model for medical data.
-See pre-print:
+See pre-print: https://arxiv.org/abs/2312.07729
 
 This model's architecture and input pipeline are based on the framework laid out by [YOLOv5](https://github.com/ultralytics/yolov5) at commit `ed887b5976d94dc61fa3f7e8e07170623dc7d6ee`.
 To increase transparency, compatible YOLOv5 code is reused as much as possible (found in folders without 3D in the name), and replaced code is usually written to follow the same structure as the code it replaces.
